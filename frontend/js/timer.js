@@ -70,7 +70,25 @@ stopBtn.addEventListener('click', () => {
     };
 
     console.log("Data ready to be sent to backend:", sessionData);
-    alert(`You studied ${subject} for a total of ${formatTime(elapsedTime)}! (Data logged to console)`);
+
+    // 🚀 SEND DATA TO .NET BACKEND (PORT 5195)
+    const backendUrl = "http://localhost:5195/api/sessions";
+
+    fetch(backendUrl, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(sessionData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert("Success! " + data.message);
+    })
+    .catch(error => {
+        console.error("Error sending data to backend:", error);
+        alert("Error saving session!");
+    });
 
     // Reset for a new session
     elapsedTime = 0;
