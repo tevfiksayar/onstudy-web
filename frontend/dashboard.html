@@ -3,50 +3,134 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard | OnStudy</title>
-    <link rel="stylesheet" href="css/global.css">
-    <link rel="stylesheet" href="css/dashboard.css">
+    <title>OnStudy - Focus & Track</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    
+    <style>
+        /* GENEL KARANLIK TEMA */
+        body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); color: #f8fafc; min-height: 100vh; }
+        
+        /* Navigasyon (Sekmeler) Menüsü Tasarımı */
+        .nav-menu { display: flex; gap: 20px; }
+        .nav-btn { background: none; border: none; font-size: 1.1em; font-weight: 600; color: #64748b; cursor: pointer; padding: 10px 15px; transition: all 0.3s; border-bottom: 3px solid transparent; }
+        .nav-btn:hover { color: #c7d2fe; text-shadow: 0 0 8px rgba(199, 210, 254, 0.5); }
+        .nav-btn.active { color: #a855f7; border-bottom: 3px solid #a855f7; text-shadow: 0 0 10px rgba(168, 85, 247, 0.4); }
+
+        /* İçerik Kutuları */
+        .tab-content { display: none; animation: fadeIn 0.4s ease-in-out; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* KARTLAR - Buzlu Cam Koyu Mor */
+        .card { background: rgba(30, 41, 59, 0.6); backdrop-filter: blur(12px); padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.4); border: 1px solid rgba(99, 102, 241, 0.2); margin-bottom: 20px; }
+        
+        /* Kronometre Özel */
+        #time-display { font-size: 4em; font-weight: bold; color: #e0e7ff; text-align: center; margin: 20px 0; font-family: monospace; text-shadow: 0 0 15px rgba(99, 102, 241, 0.5); }
+        .timer-controls { display: flex; justify-content: center; gap: 15px; }
+        .timer-controls button { padding: 12px 25px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 1em; transition: 0.2s; }
+        #start-btn { background: linear-gradient(135deg, #10b981, #059669); color: white; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); }
+        #pause-btn { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3); }
+        #stop-btn { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3); }
+    </style>
 </head>
 <body>
-    <header>
-        <h1>Welcome, <span id="user-name">Student</span></h1>
-        <button id="logout-btn">Sign Out</button>
+
+    <header style="display: flex; justify-content: space-between; align-items: center; padding: 15px 40px; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(99, 102, 241, 0.2); position: sticky; top: 0; z-index: 100;">
+        
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <h1 style="margin: 0; font-size: 1.8em; background: linear-gradient(135deg, #a855f7, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">OnStudy</h1>
+            <span id="streak-display" style="font-weight: bold; font-size: 0.9em; background: rgba(249, 115, 22, 0.2); border: 1px solid rgba(249, 115, 22, 0.4); color: #fdba74; padding: 5px 10px; border-radius: 20px;"></span>
+        </div>
+
+        <nav class="nav-menu">
+            <button class="nav-btn active" id="nav-timer" onclick="switchTab('timer')">Kronometre</button>
+            <button class="nav-btn" id="nav-stats" onclick="switchTab('stats')">İstatistikler</button>
+            <button class="nav-btn" id="nav-leaderboard" onclick="switchTab('leaderboard')">🏆 Liderlik</button>
+        </nav>
+
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <span id="user-name" style="font-weight: 600; color: #e2e8f0;">Student</span>
+            <div id="profile-btn" style="width: 45px; height: 45px; border-radius: 50%; background: linear-gradient(135deg, #a855f7, #ec4899); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; font-size: 1.2em; box-shadow: 0 4px 15px rgba(168, 85, 247, 0.4);" title="Ayarlar">👤</div>
+            <button id="logout-btn" style="background: rgba(255, 255, 255, 0.1); color: #e2e8f0; border: 1px solid rgba(255,255,255,0.2); padding: 8px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">Çıkış</button>
+        </div>
     </header>
 
-    <main class="dashboard-container">
-        
-        <section class="timer-section">
-            <h2>New Study Session</h2>
-            <input type="text" id="subject-input" placeholder="What subject are you studying? (e.g., Algorithms)">
-            
-            <div class="timer-display" id="time-display">00:00:00</div>
-            
-            <div class="timer-controls">
-                <button id="start-btn">Start</button>
-                <button id="pause-btn">Pause</button>
-                <button id="stop-btn">Stop & Save</button>
-            </div>
-        </section>
+    <main style="max-width: 1000px; margin: 40px auto; padding: 0 20px;">
 
-        <section class="stats-section">
-            <h2>Weekly Statistics</h2>
-            <div class="chart-container">
-                <canvas id="studyChart"></canvas>
+        <div id="tab-timer" class="tab-content active">
+            <div class="card" style="max-width: 600px; margin: 0 auto; text-align: center;">
+                <h2 style="color: #e2e8f0; margin-top: 0;">Yeni Çalışma Oturumu</h2>
+                <input type="text" id="subject-input" placeholder="Hangi derse çalışıyorsun?" style="width: 90%; padding: 15px; border-radius: 10px; background: rgba(15, 23, 42, 0.8); border: 2px solid rgba(99, 102, 241, 0.5); color: white; font-size: 1.1em; outline: none; transition: 0.3s;" onfocus="this.style.borderColor='#a855f7'; this.style.boxShadow='0 0 10px rgba(168,85,247,0.3)'" onblur="this.style.borderColor='rgba(99,102,241,0.5)'; this.style.boxShadow='none'">
+                
+                <div id="time-display">00:00:00</div>
+                
+                <div class="timer-controls">
+                    <button id="start-btn">▶ Başla</button>
+                    <button id="pause-btn">⏸ Beklet</button>
+                    <button id="stop-btn">⏹ Bitir & Kaydet</button>
+                </div>
             </div>
-        </section>
+        </div>
 
-        <section class="history-section">
-            <h2>Recent Sessions</h2>
-            <ul id="session-list">
-                </ul>
-        </section>
+        <div id="tab-stats" class="tab-content">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+                <div class="card">
+                    <h2 style="margin-top: 0; color: #e2e8f0;">Ders Dağılımı</h2>
+                    <canvas id="studyChart"></canvas>
+                </div>
+                <div class="card">
+                    <h2 style="margin-top: 0; color: #e2e8f0;">Son Çalışmalar</h2>
+                    <ul id="session-list"></ul>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-leaderboard" class="tab-content">
+            <div class="card" style="max-width: 700px; margin: 0 auto;">
+                <h2 style="margin-top: 0; text-align: center; color: #e2e8f0;">Global Liderlik Tablosu</h2>
+                <ul id="leaderboard-list"></ul>
+            </div>
+        </div>
 
     </main>
-    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-auth-compat.js"></script>
+
+    <div id="profile-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(8px); justify-content: center; align-items: center; z-index: 1000;">
+        <div style="background: linear-gradient(145deg, #1e293b, #0f172a); padding: 35px; border-radius: 20px; width: 360px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.8); border: 1px solid rgba(99, 102, 241, 0.3);">
+            <h2 style="margin-top: 0; display: flex; align-items: center; gap: 10px; font-size: 1.5em; border-bottom: 2px solid rgba(255,255,255,0.1); padding-bottom: 15px;">
+                <span style="background: linear-gradient(135deg, #a855f7, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">⚙️ Profil Ayarları</span>
+            </h2>
+            <label style="display: block; margin-top: 25px; font-weight: 700; color: #94a3b8; font-size: 0.85em; letter-spacing: 0.5px;">KULLANICI ADI</label>
+            <input type="text" id="modal-name" style="width: 100%; padding: 12px 15px; margin-top: 8px; border-radius: 10px; border: 1px solid #334155; font-size: 1em; color: white; background: #0f172a; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#a855f7'" onblur="this.style.borderColor='#334155'">
+            <div style="display: flex; gap: 15px; margin-top: 20px;">
+                <div style="flex: 1;">
+                    <label style="font-weight: 700; color: #94a3b8; font-size: 0.85em;">HEDEF (SAAT)</label>
+                    <input type="number" id="modal-hours" style="width: 100%; padding: 12px 15px; margin-top: 8px; border-radius: 10px; border: 1px solid #334155; font-size: 1em; color: white; background: #0f172a; box-sizing: border-box;" min="0" onfocus="this.style.borderColor='#a855f7'" onblur="this.style.borderColor='#334155'">
+                </div>
+                <div style="flex: 1;">
+                    <label style="font-weight: 700; color: #94a3b8; font-size: 0.85em;">HEDEF (DAKİKA)</label>
+                    <input type="number" id="modal-minutes" style="width: 100%; padding: 12px 15px; margin-top: 8px; border-radius: 10px; border: 1px solid #334155; font-size: 1em; color: white; background: #0f172a; box-sizing: border-box;" min="0" max="59" onfocus="this.style.borderColor='#a855f7'" onblur="this.style.borderColor='#334155'">
+                </div>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 35px;">
+                <button id="modal-cancel-btn" style="background: rgba(255,255,255,0.1); color: #e2e8f0; border: none; padding: 12px 20px; border-radius: 10px; cursor: pointer; font-weight: bold; transition: 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">İptal</button>
+                <button id="modal-save-btn" style="background: linear-gradient(135deg, #a855f7, #ec4899); color: white; border: none; padding: 12px 25px; border-radius: 10px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 15px rgba(168, 85, 247, 0.4);">Kaydet</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('tab-' + tabId).classList.add('active');
+            document.getElementById('nav-' + tabId).classList.add('active');
+        }
+    </script>
 
     <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
     <script src="js/timer.js"></script>
     <script src="js/charts.js"></script>
 </body>

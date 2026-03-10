@@ -2,11 +2,8 @@ using Google.Cloud.Firestore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. CORS Settings
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowAll", policy =>
-    {
+builder.Services.AddCors(options => {
+    options.AddPolicy("AllowAll", policy => {
         policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
     });
 });
@@ -14,63 +11,44 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 app.UseCors("AllowAll");
 
-// 2. FIREBASE BAĞLANTISI (Sihrin gerçekleştiği yer)
-// İndirdiğin gizli anahtar dosyasını okuyoruz
 string filepath = "firebase-key.json";
 Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", filepath);
-
-// Senin Firebase projenin ID'si
 string projectId = "onstudy-1a735"; 
 FirestoreDb db = FirestoreDb.Create(projectId);
 
-// 3. POST Endpoint (Veriyi alıp Firestore'a yazan kısım)
+// 1. POST: Veriyi kaydet
 app.MapPost("/api/sessions", async (StudySession session) =>
 {
-    Console.WriteLine("===============================================");
-    Console.WriteLine($"🎉 NEW STUDY SESSION RECEIVED!");
-    Console.WriteLine($"📚 Subject: {session.Subject}");
-    Console.WriteLine($"⏱️ Duration: {session.DurationInSeconds} seconds");
-    
     try
     {
-        // Firestore'a gidecek veriyi bir sözlük (Dictionary) formatına çeviriyoruz
         Dictionary<string, object> firestoreData = new Dictionary<string, object>
         {
-            { "subject", session.Subject ?? "Unknown Subject" },
+            { "userId", session.UserId ?? "unknown" }, 
+            { "subject", session.Subject ?? "Unknown" },
             { "durationInSeconds", session.DurationInSeconds },
             { "date", session.Date ?? DateTime.UtcNow.ToString("o") },
             { "createdAt", FieldValue.ServerTimestamp }
         };
 
-        // "study_sessions" adında bir koleksiyona (tabloya) bu veriyi ekliyoruz
         CollectionReference collection = db.Collection("study_sessions");
         await collection.AddAsync(firestoreData);
-
-        Console.WriteLine("✅ Data successfully saved to Firestore!");
-        Console.WriteLine("===============================================");
-        
         return Results.Ok(new { message = "Data saved to Cloud Database successfully!" });
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"❌ FIRESTORE ERROR: {ex.Message}");
-        return Results.Problem("Veritabanına kaydedilirken bir hata oluştu.");
+        return Results.Problem(ex.Message);
     }
 });
-// 4. GET Endpoint (Fetch data from Firestore to display on the Frontend)
-app.MapGet("/api/sessions", async () =>
+
+// 2. GET: Kullanıcının kendi verilerini getir
+app.MapGet("/api/sessions/{userId}", async (string userId) =>
 {
     try
     {
-        // "study_sessions" tablosuna bağlanıyoruz
         CollectionReference collection = db.Collection("study_sessions");
-        
-        // Verileri en yeniden en eskiye (tarihe göre) sıralayıp son 10 kaydı çekiyoruz
-        QuerySnapshot snapshot = await collection.OrderByDescending("createdAt").Limit(10).GetSnapshotAsync();
+        QuerySnapshot snapshot = await collection.WhereEqualTo("userId", userId).GetSnapshotAsync();
 
         List<StudySession> sessions = new List<StudySession>();
-
-        // Gelen her bir satırı (dokümanı) kendi formatımıza çeviriyoruz
         foreach (DocumentSnapshot document in snapshot.Documents)
         {
             if (document.Exists)
@@ -78,28 +56,114 @@ app.MapGet("/api/sessions", async () =>
                 Dictionary<string, object> data = document.ToDictionary();
                 sessions.Add(new StudySession
                 {
+                    UserId = data.ContainsKey("userId") ? data["userId"].ToString() : "",
                     Subject = data.ContainsKey("subject") ? data["subject"].ToString() : "Unknown",
                     DurationInSeconds = data.ContainsKey("durationInSeconds") ? Convert.ToInt32(data["durationInSeconds"]) : 0,
                     Date = data.ContainsKey("date") ? data["date"].ToString() : ""
                 });
             }
         }
-
-        Console.WriteLine($"✅ Successfully fetched {sessions.Count} sessions from Firestore.");
-        return Results.Ok(sessions);
+        var sortedSessions = sessions.OrderByDescending(s => s.Date).Take(10).ToList();
+        return Results.Ok(sortedSessions);
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"❌ FIRESTORE GET ERROR: {ex.Message}");
-        return Results.Problem("Error fetching data from database.");
+        return Results.Problem(ex.Message);
     }
 });
+
+// 3. GET: Kullanıcı profilini getir
+app.MapGet("/api/users/{userId}", async (string userId) =>
+{
+    DocumentReference docRef = db.Collection("users").Document(userId);
+    DocumentSnapshot snapshot = await docRef.GetSnapshotAsync();
+    
+    if (snapshot.Exists) return Results.Ok(snapshot.ToDictionary());
+    return Results.NotFound(new { message = "User not found" });
+});
+
+// 4. POST: Kullanıcı profilini kaydet (İSİM EKLENDİ)
+app.MapPost("/api/users", async (UserProfile profile) =>
+{
+    DocumentReference docRef = db.Collection("users").Document(profile.UserId);
+    Dictionary<string, object> userData = new Dictionary<string, object>
+    {
+        { "userId", profile.UserId },
+        { "displayName", profile.DisplayName ?? "Öğrenci" }, // YENİ
+        { "dailyGoalSeconds", profile.DailyGoalSeconds },
+        { "streakCount", profile.StreakCount },
+        { "lastGoalMetDate", profile.LastGoalMetDate ?? "" }
+    };
+    
+    await docRef.SetAsync(userData, SetOptions.MergeAll);
+    return Results.Ok(new { message = "Profile updated!" });
+});
+
+// 5. GET: LİDERLİK TABLOSU (Tüm kullanıcıların toplam süreleri yarışıyor)
+app.MapGet("/api/leaderboard", async () =>
+{
+    try
+    {
+        // 1. Önce tüm oturumları çekip kullanıcı bazında süreleri topluyoruz
+        QuerySnapshot sessionsSnap = await db.Collection("study_sessions").GetSnapshotAsync();
+        var userTotals = new Dictionary<string, int>();
+        
+        foreach(var doc in sessionsSnap.Documents) {
+            var dict = doc.ToDictionary();
+            var uid = dict.ContainsKey("userId") ? dict["userId"].ToString() : "";
+            var dur = dict.ContainsKey("durationInSeconds") ? Convert.ToInt32(dict["durationInSeconds"]) : 0;
+            if(!string.IsNullOrEmpty(uid)) {
+                if(!userTotals.ContainsKey(uid)) userTotals[uid] = 0;
+                userTotals[uid] += dur;
+            }
+        }
+
+        // 2. Kullanıcı isimlerini çekip sürelerle eşleştiriyoruz
+        QuerySnapshot usersSnap = await db.Collection("users").GetSnapshotAsync();
+        var leaderboard = new List<LeaderboardEntry>();
+
+        foreach(var uDoc in usersSnap.Documents) {
+            var uDict = uDoc.ToDictionary();
+            var uid = uDict.ContainsKey("userId") ? uDict["userId"].ToString() : "";
+            var name = uDict.ContainsKey("displayName") ? uDict["displayName"].ToString() : "Gizli Kullanıcı";
+            var total = userTotals.ContainsKey(uid) ? userTotals[uid] : 0;
+            
+            if(total > 0) {
+                leaderboard.Add(new LeaderboardEntry { DisplayName = name, TotalSeconds = total });
+            }
+        }
+
+        // 3. En çok çalışandan en aza doğru sırala ve ilk 10'u yolla
+        return Results.Ok(leaderboard.OrderByDescending(x => x.TotalSeconds).Take(10).ToList());
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem(ex.Message);
+    }
+});
+
 app.Run();
 
-// 4. Model (Frontend'den gelen verinin kalıbı)
+// --- MODELLER ---
+public class UserProfile
+{
+    public string UserId { get; set; } = "";
+    public string DisplayName { get; set; } = ""; // Liderlik tablosu için eklendi
+    public int DailyGoalSeconds { get; set; }
+    public int StreakCount { get; set; }
+    public string? LastGoalMetDate { get; set; }
+}
+
 public class StudySession
 {
+    public string? UserId { get; set; }
     public string? Subject { get; set; }
     public int DurationInSeconds { get; set; }
     public string? Date { get; set; }
+}
+
+public class LeaderboardEntry
+{
+    public string DisplayName { get; set; } = "";
+    public int TotalSeconds { get; set; }
 }

@@ -62,8 +62,9 @@ stopBtn.addEventListener('click', () => {
     const totalWorkedSeconds = Math.floor(elapsedTime / 1000);
     const subject = subjectInput.value.trim();
 
-    // The JSON payload to be sent to the .NET backend
+   // The JSON payload to be sent to the .NET backend
     const sessionData = {
+        userId: firebase.auth().currentUser.uid, // YENİ EKLENDİ (Firebase'den kimliği alır)
         subject: subject,
         durationInSeconds: totalWorkedSeconds,
         date: new Date().toISOString()
@@ -71,7 +72,8 @@ stopBtn.addEventListener('click', () => {
 
     console.log("Data ready to be sent to backend:", sessionData);
 
-    // 🚀 SEND DATA TO .NET BACKEND (PORT 5195)
+    // 🚀 SEND DATA TO .NET BACKEND
+    // UYARI: Terminalde dotnet run dediğinde çıkan port numarasıyla eşleştiğinden emin ol!
     const backendUrl = "http://localhost:5195/api/sessions";
 
     fetch(backendUrl, {
@@ -84,13 +86,19 @@ stopBtn.addEventListener('click', () => {
     .then(response => response.json())
     .then(data => {
         alert("Success! " + data.message);
+        
+        // 🚀 İŞTE SİHİRLİ DOKUNUŞ BURADA:
+        // Veri başarıyla kaydedildikten hemen sonra grafikleri ve listeyi yenile!
+        if (typeof window.loadDashboardData === "function") {
+            window.loadDashboardData();
+        }
     })
     .catch(error => {
         console.error("Error sending data to backend:", error);
         alert("Error saving session!");
     });
 
-    // Reset for a new session
+    // Yeni oturum için her şeyi sıfırla
     elapsedTime = 0;
     timeDisplay.textContent = "00:00:00";
     subjectInput.value = '';
