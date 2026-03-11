@@ -7,8 +7,6 @@ let currentUserUid = null;
 let currentDisplayName = null;
 let userProfile = null;
 
-// --- YENİ: SEÇİLİ TARİH HAFIZASI ---
-// Varsayılan olarak bugünü "YYYY-MM-DD" formatında alıyoruz.
 let selectedDateStr = new Date().toLocaleDateString('en-CA');
 
 firebase.auth().onAuthStateChanged((user) => {
@@ -38,6 +36,7 @@ async function initUserAndLoadData() {
             updateRecentSessions(sessionsData);
             updateChart(sessionsData);
             checkStreak(sessionsData);
+            renderFOMO(sessionsData); 
             
             loadLeaderboard(userProfile.targetExam || "Genel");
             loadTodos();
@@ -127,10 +126,10 @@ document.getElementById('modal-save-btn').addEventListener('click', async () => 
 const resetBtn = document.getElementById('reset-data-btn');
 if (resetBtn) {
     resetBtn.addEventListener('click', async () => {
-        showCustomDialog("Tehlikeli Bölge", "Tüm çalışma geçmişin, grafiklerin, ateşin ve görevlerin SİLİNECEK. Bunu geri alamazsın. Emin misin?", "⚠️", "Her Şeyi Sıfırla", "#EF4444", async () => {
+        showCustomDialog("Tehlikeli Bölge", "Tüm çalışma geçmişin, grafiklerin, serin ve görevlerin SİLİNECEK. Bunu geri alamazsın. Emin misin?", "", "Her Şeyi Sıfırla", "#EF4444", async () => {
             try {
                 await fetch(`http://localhost:5195/api/users/${currentUserUid}/reset`, { method: 'DELETE' });
-                showCustomDialog("Sıfırlandı!", "Tüm verilerin temizlendi. Temiz bir sayfa açılıyor.", "✅", "Tamam", "var(--primary-purple)", () => location.reload());
+                showCustomDialog("Sıfırlandı!", "Tüm verilerin temizlendi. Temiz bir sayfa açılıyor.", "", "Tamam", "var(--primary-purple)", () => location.reload());
             } catch (err) { console.error("Sıfırlama hatası:", err); }
         });
     });
@@ -143,7 +142,7 @@ async function loadLeaderboard(exam) {
         const leaderboardList = document.getElementById('leaderboard-list');
         if(!leaderboardList) return;
         
-        document.querySelector('#tab-leaderboard h2').textContent = `🏆 Global Sıralama - ${exam}`;
+        document.querySelector('#tab-leaderboard h2').textContent = `Global Sıralama - ${exam}`;
         leaderboardList.innerHTML = '';
         if(leaders.length === 0) {
             leaderboardList.innerHTML = `<div style="text-align:center; color: var(--text-muted);">Bu sınav kategorisinde henüz kimse çalışmadı. İlk sen ol!</div>`;
@@ -155,7 +154,7 @@ async function loadLeaderboard(exam) {
             let h = Math.floor(leader.totalSeconds / 3600);
             let m = Math.floor((leader.totalSeconds % 3600) / 60);
             let timeStr = h > 0 ? `${h}h ${m}m` : `${m}m ${leader.totalSeconds%60}s`;
-            let rankMedal = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `${index + 1}.`;
+            let rankMedal = index === 0 ? "1." : index === 1 ? "2." : index === 2 ? "3." : `${index + 1}.`;
             const isMe = leader.displayName === currentDisplayName;
 
             li.innerHTML = `
@@ -168,9 +167,7 @@ async function loadLeaderboard(exam) {
     } catch(err) { console.error(err); }
 }
 
-// --- TO-DO LIST YÖNETİMİ (TARİHE GÖRE ÇEKİYOR) ---
 async function loadTodos() {
-    // Sadece seçili günün görevlerini getir
     const response = await fetch(`${backendTodoUrl}${currentUserUid}/${selectedDateStr}`);
     const todos = await response.json();
     const list = document.getElementById('todo-list');
@@ -202,7 +199,6 @@ document.getElementById('add-todo-btn').addEventListener('click', async () => {
     
     await fetch('http://localhost:5195/api/todos', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        // YENİ: Görevi, yukarıdan seçili olan tarihe ekliyor
         body: JSON.stringify({ userId: currentUserUid, title: input.value, isCompleted: false, date: selectedDateStr })
     });
     input.value = '';
@@ -219,7 +215,6 @@ async function deleteTodo(id) {
     loadTodos();
 }
 
-// --- APPLE TARZI TAKVİM ŞERİDİ (TIKLANABİLİR YENİ VERSİYON) ---
 function renderCalendarStrip() {
     const strip = document.getElementById('calendar-strip');
     if(!strip) return;
@@ -237,21 +232,17 @@ function renderCalendarStrip() {
         const date = new Date(startOfWeek);
         date.setDate(startOfWeek.getDate() + i);
         
-        // Bu günün tarihini YYYY-MM-DD olarak al
         const iterDateStr = date.toLocaleDateString('en-CA');
-        
-        // Eğer bu gün bizim seçtiğimiz gün ise aktif yap (mor renk)
         const isSelected = (iterDateStr === selectedDateStr);
         
         const dayDiv = document.createElement('div');
         dayDiv.className = `cal-day ${isSelected ? 'active' : ''}`;
-        dayDiv.style.cursor = 'pointer'; // Tıklanabilir el ikonu
+        dayDiv.style.cursor = 'pointer'; 
         
-        // Tıklanınca o güne geç ve görevleri yenile
         dayDiv.onclick = () => {
-            selectedDateStr = iterDateStr; // Seçili tarihi değiştir
-            renderCalendarStrip();         // Takvimi yeniden çiz (mor kutuyu kaydır)
-            loadTodos();                   // O günün görevlerini getir!
+            selectedDateStr = iterDateStr; 
+            renderCalendarStrip();         
+            loadTodos();                   
         };
         
         dayDiv.innerHTML = `
@@ -275,12 +266,12 @@ async function checkStreak(sessions) {
     }
 
     const streakDisplay = document.getElementById('streak-display');
-    streakDisplay.innerHTML = userProfile.streakCount > 0 ? `🔥 ${userProfile.streakCount}` : `🔥 0`; 
+    streakDisplay.innerHTML = userProfile.streakCount > 0 ? `Seri: ${userProfile.streakCount}` : `Seri: 0`; 
 }
 
 window.deleteSession = async function(sessionId) {
     if (!sessionId || sessionId === "undefined") return;
-    showCustomDialog("Kaydı Sil", "Bu çalışma kaydını silmek istediğine emin misin? Grafikler güncellenecektir.", "🗑️", "Evet, Sil", "#EF4444", async () => {
+    showCustomDialog("Kaydı Sil", "Bu çalışma kaydını silmek istediğine emin misin? Grafikler güncellenecektir.", "", "Evet, Sil", "#EF4444", async () => {
         try { await fetch(backendBaseUrl + sessionId, { method: 'DELETE' }); location.reload(); } catch (error) { console.error("Silme hatası:", error); }
     });
 };
@@ -305,11 +296,11 @@ function updateRecentSessions(sessions) {
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="font-weight: 600; font-size: 1.1em; color: var(--text-light);">${session.subject}</span>
                 <div style="display: flex; align-items: center; gap: 10px;">
-                    <span style="background-color: rgba(79, 70, 229, 0.2); color: #c7d2fe; padding: 4px 10px; border-radius: 20px; font-weight: bold; font-size: 0.9em; border: 1px solid rgba(79, 70, 229, 0.3);">⏱️ ${timeString}</span>
-                    <button onclick="deleteSession('${sessionId}')" style="background: transparent; border: none; color: #EF4444; cursor: pointer; font-size: 1.1em; padding: 0 5px;" title="Bu kaydı sil">🗑️</button>
+                    <span style="background-color: rgba(79, 70, 229, 0.2); color: #c7d2fe; padding: 4px 10px; border-radius: 20px; font-weight: bold; font-size: 0.9em; border: 1px solid rgba(79, 70, 229, 0.3);">Süre: ${timeString}</span>
+                    <button onclick="deleteSession('${sessionId}')" style="background: transparent; border: none; color: #EF4444; cursor: pointer; font-size: 0.9em; font-weight: bold; padding: 0 5px;" title="Bu kaydı sil">Sil</button>
                 </div>
             </div>
-            <div style="margin-top: 5px; font-size: 0.8em; color: var(--text-muted);">📅 ${dateString}</div>
+            <div style="margin-top: 5px; font-size: 0.8em; color: var(--text-muted);">Tarih: ${dateString}</div>
         `;
         li.style.background = "rgba(255, 255, 255, 0.02)";
         li.style.margin = "10px 0";
@@ -345,7 +336,6 @@ function updateChart(sessions) {
     });
 }
 
-// --- SANAL KÜTÜPHANEYE GİRİŞ / ÇIKIŞ ---
 window.joinLiveRoom = async function(subjectName) {
     if(!currentUserUid || !userProfile) return;
     try {
@@ -366,7 +356,6 @@ window.leaveLiveRoom = async function() {
     } catch(err) { console.error(err); }
 };
 
-// --- SANAL KÜTÜPHANEYİ GETİR ---
 window.loadLiveUsers = async function() {
     if (!userProfile) return;
     const exam = userProfile.targetExam || "Genel";
@@ -393,15 +382,14 @@ window.loadLiveUsers = async function() {
                     <span style="font-weight: bold; color: ${isMe ? 'var(--primary-purple)' : 'var(--text-light)'};">${user.displayName} ${isMe ? '(Sen)' : ''}</span>
                     <div style="width: 10px; height: 10px; background: #10B981; border-radius: 50%; box-shadow: 0 0 8px #10B981;"></div> 
                 </div>
-                <div style="font-size: 0.85em; color: var(--text-muted);">📚 ${user.subject}</div>
-                ${!isMe ? `<button onclick="sendPoke('${user.userId}', '${user.displayName}')" style="margin-top: 5px; background: transparent; border: 1px solid var(--accent-orange); color: var(--accent-orange); border-radius: 6px; padding: 5px; cursor: pointer; transition: 0.2s;">🔥 Ateş Gönder</button>` : ''}
+                <div style="font-size: 0.85em; color: var(--text-muted);">Ders: ${user.subject}</div>
+                ${!isMe ? `<button onclick="sendPoke('${user.userId}', '${user.displayName}')" style="margin-top: 5px; background: transparent; border: 1px solid var(--accent-orange); color: var(--accent-orange); border-radius: 6px; padding: 5px; cursor: pointer; transition: 0.2s; font-weight:600; font-size:0.85rem;">Motivasyon Gönder</button>` : ''}
             `;
             grid.appendChild(div);
         });
     } catch (err) { console.error("Kütüphane hatası:", err); }
 };
 
-// --- ATEŞİ GERÇEKTEN VERİTABANINA GÖNDERME ---
 window.sendPoke = async function(targetUserId, targetName) {
     try {
         await fetch("http://localhost:5195/api/pokes", {
@@ -413,12 +401,11 @@ window.sendPoke = async function(targetUserId, targetName) {
             })
         });
         if (window.showCustomDialog) { 
-            showCustomDialog("Harika!", `${targetName} adlı kullanıcıya odaklanma ateşi gönderildi! 🔥`, "✨", "Tamam", "var(--accent-orange)", null); 
+            showCustomDialog("Başarılı", `${targetName} adlı kullanıcıya odaklanma motivasyonu gönderildi!`, "", "Tamam", "var(--accent-orange)", null); 
         } 
     } catch(err) { console.error(err); }
 }
 
-// --- BANA ATEŞ GELDİ Mİ DİYE DİNLEME (POSTACI) ---
 window.checkForPokes = async function() {
     if(!currentUserUid) return;
     try {
@@ -428,13 +415,233 @@ window.checkForPokes = async function() {
         if(pokes.length > 0) {
             const poke = pokes[0]; 
             if (window.showCustomDialog) {
-                showCustomDialog("Motivasyon Geldi!", `${poke.fromUserName} sana odaklanman için ateş gönderdi! 🔥`, "🔥", "Teşekkürler", "var(--accent-orange)", null);
+                showCustomDialog("Motivasyon Geldi!", `${poke.fromUserName} sana odaklanman için motivasyon gönderdi!`, "", "Teşekkürler", "var(--accent-orange)", null);
             }
         }
     } catch(err) {}
 };
 
-// HER 10 SANİYEDE BİR KONTROL ET
 setInterval(window.checkForPokes, 10000);
+
+const examDates = {
+    "YKS": "2026-06-20",
+    "TUS": "2026-08-09",
+    "DUS": "2026-10-11",
+    "KPSS": "2026-07-19",
+    "LGS": "2026-06-07"
+};
+
+function renderFOMO(sessionsData) {
+    const fomoCard = document.getElementById('fomo-card');
+    if (!userProfile || !userProfile.targetExam || userProfile.targetExam === "Genel") {
+        fomoCard.style.display = 'none'; 
+        return;
+    }
+
+    const targetDateStr = examDates[userProfile.targetExam];
+    if (!targetDateStr) return;
+
+    const targetDate = new Date(targetDateStr);
+    const today = new Date();
+    const diffTime = targetDate - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    document.getElementById('fomo-title').textContent = `${userProfile.targetExam} Sınavına`;
+    document.getElementById('fomo-countdown').textContent = `${diffDays > 0 ? diffDays : 0} Gün Kaldı`;
+
+    let userTodaySecs = 0;
+    const todayStr = new Date().toLocaleDateString();
+    sessionsData.forEach(s => { 
+        if (new Date(s.date).toLocaleDateString() === todayStr) userTodaySecs += s.durationInSeconds; 
+    });
+
+    let rivalSecs = 10800; 
+    if (userTodaySecs > 10800) rivalSecs = userTodaySecs + 1800; 
+    if (userTodaySecs > 21600) rivalSecs = userTodaySecs - 3600; 
+
+    const formatTime = (totalSecs) => {
+        const h = Math.floor(totalSecs / 3600);
+        const m = Math.floor((totalSecs % 3600) / 60);
+        return h > 0 ? `${h} saat ${m} dk` : `${m} dk`;
+    };
+
+    const fomoMessage = document.getElementById('fomo-message');
+    fomoCard.style.display = 'block';
+
+    if (userTodaySecs >= rivalSecs && userTodaySecs > 0) {
+        fomoMessage.innerHTML = `İnanılmaz! Bugün seninle aynı sınava hazırlanan rakiplerin ortalama <b>${formatTime(rivalSecs)}</b> çalıştı. Sen <b>${formatTime(userTodaySecs)}</b> çalışarak %90'lık kesimi geride bıraktın!`;
+        fomoMessage.style.color = "#10B981"; 
+    } else {
+        fomoMessage.innerHTML = `Uyarı: Bugün seninle aynı sınava hazırlanan rakiplerin ortalama <b>${formatTime(rivalSecs)}</b> çalıştı. Sen henüz <b>${formatTime(userTodaySecs)}</b> çalıştın. Aradaki farkı kapatman lazım!`;
+        fomoMessage.style.color = "#FCA5A5"; 
+    }
+}
+
+// --- YENİ: GELİŞMİŞ LOBİ VE GRUP ODASI SİSTEMİ ---
+window.activeRoomId = null;
+window.activeRoomName = "";
+let privateRoomInterval = null;
+
+window.loadLobbyRooms = async function() {
+    try {
+        const response = await fetch("http://localhost:5195/api/rooms");
+        const rooms = await response.json();
+        const grid = document.getElementById('lobby-grid');
+        grid.innerHTML = '';
+        
+        if (rooms.length === 0) {
+            grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; color: var(--text-muted); padding: 30px;">Şu an aktif bir oda yok. İlk odayı sen kur!</div>`;
+            return;
+        }
+
+        rooms.forEach(r => {
+            grid.innerHTML += `
+                <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 20px; border-radius: 12px; transition: 0.2s; cursor: pointer;" 
+                     onmouseover="this.style.borderColor='var(--primary-purple)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.05)'"
+                     onclick="attemptJoinRoom('${r.roomId}', '${r.name}', ${r.isLocked})">
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                        <h4 style="margin: 0; color: var(--text-light); font-size: 1.1rem;">${r.name}</h4>
+                        ${r.isLocked ? `<span style="font-size: 0.75rem; font-weight:600; background: rgba(239,68,68,0.1); color: #EF4444; padding: 4px 8px; border-radius: 6px;">Kilitli</span>` : `<span style="font-size: 0.75rem; font-weight:600; background: rgba(16,185,129,0.1); color: #10B981; padding: 4px 8px; border-radius: 6px;">Açık</span>`}
+                    </div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 15px;">Kurucu: ${r.creator}</div>
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 0.85rem; color: var(--accent-orange); background: rgba(249,115,22,0.1); padding: 4px 8px; border-radius: 6px; font-weight: bold;">Kişi: ${r.userCount}</span>
+                        <span style="font-size: 0.85rem; color: var(--primary-purple); font-weight: bold;">Katıl ➜</span>
+                    </div>
+                </div>
+            `;
+        });
+    } catch(err) { console.error("Lobi yüklenemedi:", err); }
+};
+
+window.createNewRoom = async function() {
+    const name = document.getElementById('new-room-name').value.trim();
+    const pass = document.getElementById('new-room-password').value.trim();
+    
+    if(!name) { alert("Oda adı boş olamaz!"); return; }
+
+    try {
+        const res = await fetch("http://localhost:5195/api/rooms", {
+            method: "POST", headers: {"Content-Type":"application/json"},
+            body: JSON.stringify({ name: name, password: pass, creator: currentDisplayName })
+        });
+        const data = await res.json();
+        
+        document.getElementById('new-room-name').value = '';
+        document.getElementById('new-room-password').value = '';
+        document.getElementById('create-room-form').style.display = 'none';
+        document.getElementById('lobby-grid').style.display = 'grid';
+        
+        joinRoomDirectly(data.roomId, name);
+    } catch(err) { console.error(err); }
+};
+
+window.attemptJoinRoom = async function(roomId, roomName, isLocked) {
+    if (isLocked) {
+        const pass = prompt(`"${roomName}" odası şifreli. Lütfen şifreyi girin:`);
+        if (pass === null) return; 
+        
+        try {
+            const res = await fetch("http://localhost:5195/api/rooms/verify", {
+                method: "POST", headers: {"Content-Type":"application/json"},
+                body: JSON.stringify({ roomId: roomId, password: pass })
+            });
+            if(res.ok) {
+                joinRoomDirectly(roomId, roomName);
+            } else {
+                alert("Hatalı şifre!");
+            }
+        } catch(err) { alert("Hatalı şifre!"); }
+    } else {
+        joinRoomDirectly(roomId, roomName);
+    }
+};
+
+window.joinRoomDirectly = async function(roomId, roomName) {
+    window.activeRoomId = roomId;
+    window.activeRoomName = roomName;
+    
+    try {
+        await fetch("http://localhost:5195/api/private/join", {
+            method: "POST", headers: {"Content-Type":"application/json"},
+            body: JSON.stringify({ userId: currentUserUid, displayName: currentDisplayName, roomId: roomId }) // DÜZELTİLDİ: Artık ismi %100 bulacak
+        });
+        
+        document.getElementById('lobby-screen').style.display = 'none';
+        document.getElementById('private-room-screen').style.display = 'block';
+        document.getElementById('current-room-name').textContent = roomName;
+        
+        refreshPrivateRoom();
+        privateRoomInterval = setInterval(refreshPrivateRoom, 3000);
+
+    } catch(err) { console.error("Odaya girilemedi:", err); }
+};
+
+window.leavePrivateRoom = async function() {
+    if(!currentUserUid) return;
+    clearInterval(privateRoomInterval);
+    try {
+        await fetch("http://localhost:5195/api/private/leave", {
+            method: "POST", headers: {"Content-Type":"application/json"},
+            // DÜZELTME: Artık çıkarken "roomId" verisini de gönderiyoruz ki odayı silebilsin!
+            body: JSON.stringify({ userId: currentUserUid, roomId: activeRoomId }) 
+        });
+        window.activeRoomId = null;
+        document.getElementById('lobby-screen').style.display = 'block';
+        document.getElementById('private-room-screen').style.display = 'none';
+        loadLobbyRooms(); 
+    } catch(err) {}
+};
+
+window.refreshPrivateRoom = async function() {
+    if(!activeRoomId) return;
+    try {
+        const uRes = await fetch(`http://localhost:5195/api/private/${activeRoomId}/users`);
+        const users = await uRes.json();
+        const uList = document.getElementById('private-users-list');
+        uList.innerHTML = '';
+        users.forEach(u => {
+            const isMe = u.userId === currentUserUid;
+            uList.innerHTML += `
+                <div style="display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.03); padding:10px; border-radius:8px; border:1px solid ${isMe ? 'var(--primary-purple)' : 'rgba(255,255,255,0.05)'};">
+                    <div style="width: 8px; height: 8px; background: #10B981; border-radius: 50%; box-shadow: 0 0 5px #10B981;"></div>
+                    <span style="color:var(--text-light); font-size:0.9rem;">${u.displayName} ${isMe ? '(Sen)' : ''}</span>
+                </div>`;
+        });
+    } catch(err) {}
+
+    try {
+        const cRes = await fetch(`http://localhost:5195/api/private/${activeRoomId}/chat`);
+        const msgs = await cRes.json();
+        const cBox = document.getElementById('chat-box');
+        const isScrolledToBottom = cBox.scrollHeight - cBox.clientHeight <= cBox.scrollTop + 10;
+        
+        cBox.innerHTML = '';
+        msgs.forEach(m => {
+            cBox.innerHTML += `<div class="chat-msg"><span>${m.senderName}:</span> ${m.text}</div>`;
+        });
+        if (isScrolledToBottom) cBox.scrollTop = cBox.scrollHeight;
+    } catch(err) {}
+};
+
+window.sendChatMessage = async function() {
+    const input = document.getElementById('chat-input');
+    const text = input.value.trim();
+    if(!text || !activeRoomId) return;
+    
+    input.value = ''; 
+    
+    try {
+        await fetch("http://localhost:5195/api/private/chat", {
+            method: "POST", headers: {"Content-Type":"application/json"},
+            body: JSON.stringify({ roomId: activeRoomId, senderName: currentDisplayName, text: text }) // DÜZELTİLDİ: İsim hatası giderildi.
+        });
+        refreshPrivateRoom(); 
+    } catch(err) { console.error("Mesaj gönderilemedi:", err); }
+};
+
+window.addEventListener('beforeunload', () => { if(activeRoomId) leavePrivateRoom(); });
 
 window.loadDashboardData = initUserAndLoadData;

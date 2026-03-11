@@ -66,3 +66,47 @@ input {
 input:focus {
     border-color: var(--primary-purple);
 }
+/* --- MOBİL İÇİN HEADER DÜZELTMESİ (ÜST ÜSTE BİNMEYİ ENGELLER) --- */
+@media (max-width: 768px) {
+    header {
+        flex-direction: column !important;
+        padding: 15px !important;
+        gap: 15px !important;
+        height: auto !important;
+        position: relative !important; /* Mobilde yapışkan header çok yer kaplar, ekranı rahatlatmak için iptal ediyoruz */
+    }
+
+    .header-left {
+        width: 100% !important;
+        flex-direction: column !important;
+        gap: 15px !important;
+    }
+
+    .nav-menu {
+        margin-left: 0 !important;
+        width: 100% !important;
+        display: flex !important;
+        overflow-x: auto !important; /* Taşan butonları yana kaydırılabilir yapar */
+        padding-bottom: 5px !important;
+        justify-content: flex-start !important;
+        -webkit-overflow-scrolling: touch; /* iOS cihazlarda kaydırmayı yağ gibi akıcı yapar */
+        gap: 15px !important;
+    }
+    
+    /* Mobilde o çirkin yatay kaydırma çubuğunu gizler ama parmakla kaydırma çalışmaya devam eder */
+    .nav-menu::-webkit-scrollbar {
+        display: none;
+    }
+
+    .nav-btn {
+        white-space: nowrap !important; /* Buton içindeki yazılar (Örn: Çalışma Modu) alt alta kırılmasın */
+        font-size: 0.95rem !important;
+    }
+
+    .header-right {
+        width: 100% !important;
+        justify-content: center !important;
+        flex-wrap: wrap !important; /* İsim, ateş ve ID sığmazsa efendi gibi alt satıra geçsin */
+        gap: 10px !important;
+    }
+}

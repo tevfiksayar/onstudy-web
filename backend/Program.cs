@@ -106,9 +106,8 @@ app.MapGet("/api/leaderboard/{exam}", async (string exam) => {
     return Results.Ok(leaderboard);
 });
 
-// 4. TO-DO (TARİHE GÖRE FİLTRELENMİŞ YENİ VERSİYON)
+// 4. TO-DO 
 app.MapGet("/api/todos/{userId}/{date}", async (string userId, string date) => {
-    // Sadece o günün tarihine sahip görevleri getir!
     QuerySnapshot snap = await db.Collection("todos")
         .WhereEqualTo("userId", userId)
         .WhereEqualTo("date", date)
@@ -132,7 +131,7 @@ app.MapPost("/api/todos", async (TodoItem todo) => {
         { "userId", todo.UserId }, 
         { "title", todo.Title }, 
         { "isCompleted", todo.IsCompleted }, 
-        { "date", todo.Date }, // YENİ: Hangi güne eklendiği
+        { "date", todo.Date }, 
         { "createdAt", FieldValue.ServerTimestamp } 
     };
     await db.Collection("todos").AddAsync(data);
@@ -149,8 +148,7 @@ app.MapDelete("/api/todos/{id}", async (string id) => {
     return Results.Ok();
 });
 
-
-// --- 5. SANAL KÜTÜPHANE (LIVE ROOMS - HATA KORUMALI) ---
+// 5. SANAL KÜTÜPHANE 
 app.MapPost("/api/live/join", async (LiveUser user) => {
     Dictionary<string, object> data = new() {
         { "userId", user.UserId ?? "unknown" },
@@ -176,7 +174,6 @@ app.MapGet("/api/live/{exam}", async (string exam) => {
         var liveUsers = snap.Documents.Select(d => {
             var dict = d.ToDictionary();
             return new LiveUser {
-                // KeyNotFound hatasını önlemek için güvenli veri çekimi:
                 UserId = dict.ContainsKey("userId") ? dict["userId"]?.ToString() ?? "" : "",
                 DisplayName = dict.ContainsKey("displayName") ? dict["displayName"]?.ToString() ?? "Öğrenci" : "Öğrenci",
                 Exam = dict.ContainsKey("exam") ? dict["exam"]?.ToString() ?? "Genel" : "Genel",
@@ -187,10 +184,10 @@ app.MapGet("/api/live/{exam}", async (string exam) => {
     } 
     catch (Exception ex) {
         Console.WriteLine("Sanal Kütüphane Çekilirken Hata: " + ex.Message);
-        return Results.Ok(new List<LiveUser>()); // Çökmek yerine boş liste dön
+        return Results.Ok(new List<LiveUser>()); 
     }
 });
-// --- YENİ EKLENDİ: ATEŞ GÖNDERME (POKES) ---
+
 app.MapPost("/api/pokes", async (Poke poke) => {
     Dictionary<string, object> data = new() {
         { "toUserId", poke.ToUserId },
@@ -202,10 +199,8 @@ app.MapPost("/api/pokes", async (Poke poke) => {
 });
 
 app.MapGet("/api/pokes/{userId}", async (string userId) => {
-    // Kullanıcıya gelen ateşleri bul
     QuerySnapshot snap = await db.Collection("pokes").WhereEqualTo("toUserId", userId).GetSnapshotAsync();
     var pokes = new List<Poke>();
-    
     foreach (var doc in snap.Documents) {
         var dict = doc.ToDictionary();
         pokes.Add(new Poke {
@@ -213,19 +208,136 @@ app.MapGet("/api/pokes/{userId}", async (string userId) => {
             ToUserId = userId,
             FromUserName = dict.ContainsKey("fromUserName") ? dict["fromUserName"].ToString() : "Biri"
         });
-        // Karşı taraf ateşi görünce veritabanından sil ki sürekli aynı ateş çıkmasın
         await doc.Reference.DeleteAsync();
     }
     return Results.Ok(pokes);
 });
 
+// --- 6. GELİŞMİŞ GRUP ODALARI VE LOBİ (ZOOM STİLİ) ---
+app.MapGet("/api/rooms", async () => {
+    QuerySnapshot snap = await db.Collection("active_rooms").GetSnapshotAsync();
+    var rooms = new List<object>();
+    foreach (var doc in snap.Documents) {
+        var dict = doc.ToDictionary();
+        var usersSnap = await db.Collection("private_users").WhereEqualTo("roomId", doc.Id).GetSnapshotAsync();
+        
+        rooms.Add(new {
+            RoomId = doc.Id,
+            Name = dict.ContainsKey("name") ? dict["name"].ToString() : "Oda",
+            IsLocked = dict.ContainsKey("isLocked") ? Convert.ToBoolean(dict["isLocked"]) : false,
+            Creator = dict.ContainsKey("creator") ? dict["creator"].ToString() : "Biri",
+            UserCount = usersSnap.Documents.Count
+        });
+    }
+    return Results.Ok(rooms);
+});
+
+app.MapPost("/api/rooms", async (CreateRoomReq req) => {
+    Dictionary<string, object> data = new() {
+        { "name", req.Name },
+        { "isLocked", !string.IsNullOrEmpty(req.Password) },
+        { "password", req.Password ?? "" },
+        { "creator", req.Creator },
+        { "createdAt", FieldValue.ServerTimestamp }
+    };
+    var doc = await db.Collection("active_rooms").AddAsync(data);
+    return Results.Ok(new { RoomId = doc.Id });
+});
+
+app.MapPost("/api/rooms/verify", async (VerifyRoomReq req) => {
+    var doc = await db.Collection("active_rooms").Document(req.RoomId).GetSnapshotAsync();
+    if(!doc.Exists) return Results.BadRequest();
+    var dict = doc.ToDictionary();
+    var truePass = dict.ContainsKey("password") ? dict["password"].ToString() : "";
+    if(truePass == req.Password) return Results.Ok();
+    return Results.BadRequest();
+});
+
+app.MapPost("/api/private/join", async (PrivateRoomUser user) => {
+    Dictionary<string, object> data = new() { 
+        { "userId", user.UserId ?? "unknown" }, 
+        { "displayName", user.DisplayName ?? "Öğrenci" }, 
+        { "roomId", user.RoomId ?? "genel" } 
+    };
+    await db.Collection("private_users").Document(user.UserId ?? "unknown").SetAsync(data);
+    return Results.Ok();
+});
+
+// ÇIKIŞ YAPMA VE ODAYI TEMİZLEME (SORUNSUZ VERSİYON)
+app.MapPost("/api/private/leave", async (PrivateRoomUser user) => {
+    if (!string.IsNullOrEmpty(user.UserId)) {
+        await db.Collection("private_users").Document(user.UserId).DeleteAsync();
+        
+        if (!string.IsNullOrEmpty(user.RoomId)) {
+            var remainingUsers = await db.Collection("private_users").WhereEqualTo("roomId", user.RoomId).GetSnapshotAsync();
+            if (remainingUsers.Documents.Count == 0) {
+                await db.Collection("active_rooms").Document(user.RoomId).DeleteAsync();
+                var oldChats = await db.Collection("private_chats").WhereEqualTo("roomId", user.RoomId).GetSnapshotAsync();
+                foreach (var chat in oldChats.Documents) {
+                    await chat.Reference.DeleteAsync();
+                }
+            }
+        }
+    }
+    return Results.Ok();
+});
+
+app.MapGet("/api/private/{roomId}/users", async (string roomId) => {
+    QuerySnapshot snap = await db.Collection("private_users").WhereEqualTo("roomId", roomId).GetSnapshotAsync();
+    var users = snap.Documents.Select(d => { 
+        var dict = d.ToDictionary(); 
+        return new PrivateRoomUser { 
+            UserId = dict.ContainsKey("userId") ? dict["userId"].ToString() : "", 
+            DisplayName = dict.ContainsKey("displayName") ? dict["displayName"].ToString() : "Gizli" 
+        }; 
+    }).ToList();
+    return Results.Ok(users);
+});
+
+app.MapPost("/api/private/chat", async (ChatMessage msg) => {
+    Dictionary<string, object> data = new() { 
+        { "roomId", msg.RoomId }, 
+        { "senderName", msg.SenderName }, 
+        { "text", msg.Text }, 
+        { "timestamp", FieldValue.ServerTimestamp } 
+    };
+    await db.Collection("private_chats").AddAsync(data);
+    return Results.Ok();
+});
+
+app.MapGet("/api/private/{roomId}/chat", async (string roomId) => {
+    QuerySnapshot snap = await db.Collection("private_chats").WhereEqualTo("roomId", roomId).GetSnapshotAsync();
+
+    var msgs = snap.Documents.Select(d => {
+        var dict = d.ToDictionary();
+        DateTime time = DateTime.MinValue;
+        if (dict.ContainsKey("timestamp") && dict["timestamp"] is Google.Cloud.Firestore.Timestamp ts) {
+            time = ts.ToDateTime();
+        }
+        return new {
+            SenderName = dict.ContainsKey("senderName") ? dict["senderName"]?.ToString() : "Biri",
+            Text = dict.ContainsKey("text") ? dict["text"]?.ToString() : "",
+            Time = time
+        };
+    })
+    .OrderBy(x => x.Time) 
+    .TakeLast(30) 
+    .Select(x => new ChatMessage { SenderName = x.SenderName, Text = x.Text })
+    .ToList();
+
+    return Results.Ok(msgs);
+});
+
 app.Run();
 
-/// MODELLER (En alttaki modeller listene bunu da ekle)
+// MODELLER
 public class UserProfile { public string UserId { get; set; } = ""; public string DisplayName { get; set; } = ""; public int DailyGoalSeconds { get; set; } public int StreakCount { get; set; } public string? LastGoalMetDate { get; set; } public string TargetExam { get; set; } = "Genel"; }
 public class StudySession { public string? Id { get; set; } public string? UserId { get; set; } public string? Subject { get; set; } public int DurationInSeconds { get; set; } public string? Date { get; set; } }
 public class LeaderboardEntry { public string DisplayName { get; set; } = ""; public int TotalSeconds { get; set; } }
 public class TodoItem { public string? Id { get; set; } public string? UserId { get; set; } public string? Title { get; set; } public bool IsCompleted { get; set; } public string? Date { get; set; } }
 public class LiveUser { public string? UserId { get; set; } public string? DisplayName { get; set; } public string? Exam { get; set; } public string? Subject { get; set; } }
-// BURA YENİ:
 public class Poke { public string? Id { get; set; } public string ToUserId { get; set; } = ""; public string FromUserName { get; set; } = ""; }
+public class PrivateRoomUser { public string? UserId { get; set; } public string? DisplayName { get; set; } public string? RoomId { get; set; } }
+public class ChatMessage { public string? RoomId { get; set; } public string? SenderName { get; set; } public string? Text { get; set; } }
+public class CreateRoomReq { public string Name { get; set; } = ""; public string? Password { get; set; } public string Creator { get; set; } = ""; }
+public class VerifyRoomReq { public string RoomId { get; set; } = ""; public string? Password { get; set; } }
