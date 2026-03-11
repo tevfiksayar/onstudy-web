@@ -32,15 +32,15 @@ toggleAuth.addEventListener('click', (e) => {
     isSignUpMode = !isSignUpMode;
 
     if (isSignUpMode) {
-        formTitle.textContent = "Sign Up";
-        submitBtn.textContent = "Sign Up";
-        toggleAuth.innerHTML = "Sign In";
-        toggleAuth.parentElement.firstChild.textContent = "Already have an account? ";
+        formTitle.textContent = "Giriş Yap";
+        submitBtn.textContent = "Giriş Yap";
+        toggleAuth.innerHTML = "Giriş Yap";
+        toggleAuth.parentElement.firstChild.textContent = "Heabın var mı? ";
     } else {
-        formTitle.textContent = "Sign In";
-        submitBtn.textContent = "Sign In";
-        toggleAuth.innerHTML = "Sign Up";
-        toggleAuth.parentElement.firstChild.textContent = "Don't have an account? ";
+        formTitle.textContent = "Giriş Yap";
+        submitBtn.textContent = "Giriş Yap";
+        toggleAuth.innerHTML = "Giriş Yap";
+        toggleAuth.parentElement.firstChild.textContent = "Hesabın yok mu? ";
     }
 });
 

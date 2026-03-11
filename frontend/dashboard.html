@@ -3,135 +3,245 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OnStudy - Focus & Track</title>
+    <title>Panel | onStudy</title>
+
+    <link rel="stylesheet" href="css/global.css">
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-auth-compat.js"></script>
     
     <style>
-        /* GENEL KARANLIK TEMA */
-        body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); color: #f8fafc; min-height: 100vh; }
-        
-        /* Navigasyon (Sekmeler) Menüsü Tasarımı */
-        .nav-menu { display: flex; gap: 20px; }
-        .nav-btn { background: none; border: none; font-size: 1.1em; font-weight: 600; color: #64748b; cursor: pointer; padding: 10px 15px; transition: all 0.3s; border-bottom: 3px solid transparent; }
-        .nav-btn:hover { color: #c7d2fe; text-shadow: 0 0 8px rgba(199, 210, 254, 0.5); }
-        .nav-btn.active { color: #a855f7; border-bottom: 3px solid #a855f7; text-shadow: 0 0 10px rgba(168, 85, 247, 0.4); }
+        header { display: flex; justify-content: space-between; align-items: center; padding: 15px 40px; background-color: var(--card-bg); border-bottom: 1px solid rgba(255,255,255,0.05); position: sticky; top: 0; z-index: 100; }
+        .header-left { display: flex; align-items: center; }
+        .logo-container { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .logo-text { font-size: 1.5rem; font-weight: 800; margin: 0; letter-spacing: 0.5px; background: linear-gradient(135deg, var(--accent-orange), var(--accent-yellow)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .nav-menu { display: flex; gap: 30px; margin-left: 40px; }
+        .nav-btn { background: transparent; padding: 10px 0; color: var(--text-muted); font-size: 1rem; font-weight: 500; border-radius: 0; border-bottom: 2px solid transparent; text-transform: none; box-shadow: none; cursor: pointer; }
+        .nav-btn:hover { color: var(--text-light); }
+        .nav-btn.active { color: var(--primary-purple); border-bottom: 2px solid var(--primary-purple); color: var(--text-light); }
+        .header-right { display: flex; align-items: center; gap: 20px; }
+        #streak-display { font-size: 0.85rem; color: var(--accent-orange); font-weight: 600; background: rgba(249, 115, 22, 0.1); padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(249, 115, 22, 0.2); }
+        #user-name { font-weight: 500; font-size: 0.95rem; color: var(--text-light); }
+        #profile-btn { width: 40px; height: 40px; border-radius: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-weight: 600; cursor: pointer; color: var(--text-light); transition: 0.2s; font-size: 0.9em; letter-spacing: 1px; }
+        #profile-btn:hover { background: rgba(255,255,255,0.2); }
+        #logout-btn { background: transparent; color: var(--text-muted); padding: 8px 16px; border: 1px solid rgba(255,255,255,0.1); box-shadow: none; cursor: pointer; }
+        #logout-btn:hover { color: var(--text-light); border-color: rgba(255,255,255,0.3); }
 
-        /* İçerik Kutuları */
-        .tab-content { display: none; animation: fadeIn 0.4s ease-in-out; }
+        .tab-content { display: none; animation: fadeIn 0.3s ease; }
         .tab-content.active { display: block; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* KARTLAR - Buzlu Cam Koyu Mor */
-        .card { background: rgba(30, 41, 59, 0.6); backdrop-filter: blur(12px); padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.4); border: 1px solid rgba(99, 102, 241, 0.2); margin-bottom: 20px; }
-        
-        /* Kronometre Özel */
-        #time-display { font-size: 4em; font-weight: bold; color: #e0e7ff; text-align: center; margin: 20px 0; font-family: monospace; text-shadow: 0 0 15px rgba(99, 102, 241, 0.5); }
+        .card { background-color: var(--card-bg); padding: 30px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .card h2 { color: var(--text-muted); font-size: 1rem; font-weight: 500; margin-top: 0; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px; }
+
+        .mode-switch { display: flex; background: rgba(255,255,255,0.03); border-radius: 12px; padding: 5px; margin-bottom: 25px; width: fit-content; margin-left: auto; margin-right: auto; border: 1px solid rgba(255,255,255,0.05); }
+        .mode-btn { background: transparent; border: none; color: var(--text-muted); padding: 10px 20px; border-radius: 10px; cursor: pointer; font-weight: 600; transition: 0.3s; font-size: 0.95rem; }
+        .mode-btn.active { background: linear-gradient(135deg, var(--accent-orange), var(--accent-yellow)); color: #12131C; box-shadow: 0 4px 15px rgba(249, 115, 22, 0.3); }
+
         .timer-controls { display: flex; justify-content: center; gap: 15px; }
-        .timer-controls button { padding: 12px 25px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 1em; transition: 0.2s; }
-        #start-btn { background: linear-gradient(135deg, #10b981, #059669); color: white; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); }
-        #pause-btn { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3); }
-        #stop-btn { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3); }
+        #pause-btn { background: transparent; border: 1px solid var(--accent-yellow); color: var(--accent-yellow); box-shadow: none; }
+        #pause-btn:hover { background: rgba(251, 191, 36, 0.1); transform: translateY(-2px); }
+        #stop-btn { background: transparent; border: 1px solid #EF4444; color: #EF4444; box-shadow: none; }
+        #stop-btn:hover { background: rgba(239, 68, 68, 0.1); transform: translateY(-2px); }
+
+        .stats-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; }
+        .calendar-strip { display: flex; justify-content: space-between; background: rgba(255, 255, 255, 0.02); padding: 15px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.05); margin-bottom: 25px; }
+        .cal-day { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 10px 15px; border-radius: 10px; color: var(--text-muted); transition: 0.2s; }
+        .cal-day-name { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        .cal-day-num { font-size: 1.3rem; font-weight: 700; }
+        .cal-day.active { background: linear-gradient(135deg, var(--accent-orange), var(--primary-purple)); color: white; box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3); transform: scale(1.05); }
+
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(18, 19, 28, 0.8); backdrop-filter: blur(5px); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background-color: var(--card-bg); padding: 35px; border-radius: 16px; width: 360px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
+        .modal-content h3 { color: var(--text-light); margin-top: 0; margin-bottom: 25px; font-weight: 600; font-size: 1.2rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 15px;}
+        .modal-label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px; font-weight: 600; letter-spacing: 0.5px; }
+        .modal-content input, .modal-content select { width: 100%; box-sizing: border-box; padding: 12px 15px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: var(--text-light); font-family: inherit; font-size: 0.95rem; outline: none; transition: border-color 0.2s; }
+        .modal-content input:focus, .modal-content select:focus { border-color: var(--primary-purple); }
+        .modal-content select option { background: var(--card-bg); color: var(--text-light); }
+
+        @media (max-width: 768px) {
+            header { flex-direction: column; gap: 20px; padding: 20px; }
+            .header-left { flex-direction: column; gap: 15px; }
+            .nav-menu { margin-left: 0; gap: 15px; flex-wrap: wrap; justify-content: center; }
+            .stats-grid { grid-template-columns: 1fr; }
+            .modal-content { width: 90%; padding: 25px; }
+            .cal-day { padding: 8px; }
+            .timer-controls { flex-direction: column; }
+        }
     </style>
 </head>
 <body>
 
-    <header style="display: flex; justify-content: space-between; align-items: center; padding: 15px 40px; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(99, 102, 241, 0.2); position: sticky; top: 0; z-index: 100;">
-        
-        <div style="display: flex; align-items: center; gap: 10px;">
-            <h1 style="margin: 0; font-size: 1.8em; background: linear-gradient(135deg, #a855f7, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">OnStudy</h1>
-            <span id="streak-display" style="font-weight: bold; font-size: 0.9em; background: rgba(249, 115, 22, 0.2); border: 1px solid rgba(249, 115, 22, 0.4); color: #fdba74; padding: 5px 10px; border-radius: 20px;"></span>
+    <header>
+        <div class="header-left">
+           <div class="logo-container">
+                <img src="assets/logo.jpg" alt="onStudy Logo" style="width: 36px; height: 36px; border-radius: 8px; object-fit: cover; box-shadow: 0 4px 10px rgba(124, 58, 237, 0.3);">
+                <h1 class="logo-text">onStudy</h1>
+            </div>
+            <nav class="nav-menu">
+                <button class="nav-btn active" id="nav-timer" onclick="switchTab('timer')">Çalışma Modu</button>
+                <button class="nav-btn" id="nav-live" onclick="switchTab('live')">Sanal Kütüphane</button>
+                <button class="nav-btn" id="nav-stats" onclick="switchTab('stats')">İstatistikler</button>
+                <button class="nav-btn" id="nav-leaderboard" onclick="switchTab('leaderboard')">Sıralama</button>
+                <button class="nav-btn" id="nav-todo" onclick="switchTab('todo')">Görevler</button>
+            </nav>
         </div>
 
-        <nav class="nav-menu">
-            <button class="nav-btn active" id="nav-timer" onclick="switchTab('timer')">Kronometre</button>
-            <button class="nav-btn" id="nav-stats" onclick="switchTab('stats')">İstatistikler</button>
-            <button class="nav-btn" id="nav-leaderboard" onclick="switchTab('leaderboard')">🏆 Liderlik</button>
-        </nav>
-
-        <div style="display: flex; align-items: center; gap: 15px;">
-            <span id="user-name" style="font-weight: 600; color: #e2e8f0;">Student</span>
-            <div id="profile-btn" style="width: 45px; height: 45px; border-radius: 50%; background: linear-gradient(135deg, #a855f7, #ec4899); color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; font-size: 1.2em; box-shadow: 0 4px 15px rgba(168, 85, 247, 0.4);" title="Ayarlar">👤</div>
-            <button id="logout-btn" style="background: rgba(255, 255, 255, 0.1); color: #e2e8f0; border: 1px solid rgba(255,255,255,0.2); padding: 8px 15px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">Çıkış</button>
+        <div class="header-right">
+            <span id="streak-display"></span>
+            <span id="user-name"></span>
+            <div id="profile-btn" title="Ayarlar">ID</div>
+            <button id="logout-btn">Çıkış Yap</button>
         </div>
     </header>
 
     <main style="max-width: 1000px; margin: 40px auto; padding: 0 20px;">
 
         <div id="tab-timer" class="tab-content active">
-            <div class="card" style="max-width: 600px; margin: 0 auto; text-align: center;">
-                <h2 style="color: #e2e8f0; margin-top: 0;">Yeni Çalışma Oturumu</h2>
-                <input type="text" id="subject-input" placeholder="Hangi derse çalışıyorsun?" style="width: 90%; padding: 15px; border-radius: 10px; background: rgba(15, 23, 42, 0.8); border: 2px solid rgba(99, 102, 241, 0.5); color: white; font-size: 1.1em; outline: none; transition: 0.3s;" onfocus="this.style.borderColor='#a855f7'; this.style.boxShadow='0 0 10px rgba(168,85,247,0.3)'" onblur="this.style.borderColor='rgba(99,102,241,0.5)'; this.style.boxShadow='none'">
+            
+            <div class="card" style="max-width: 600px; margin: 0 auto 25px auto; padding: 45px 40px;">
+                <div class="mode-switch" style="margin-bottom: 35px;">
+                    <button id="mode-stopwatch" class="mode-btn active" onclick="setTimerMode('stopwatch')">Serbest Çalışma</button>
+                    <button id="mode-pomodoro" class="mode-btn" onclick="setTimerMode('pomodoro')">Pomodoro</button>
+                </div>
+
+                <input type="text" id="subject-input" placeholder="Hangi derse çalışıyorsun? (Örn: Matematik)" style="width: 100%; box-sizing: border-box; padding: 18px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); color: white; margin-bottom: 10px; font-size: 1.1rem; text-align: center; outline: none; transition: border-color 0.3s;" onfocus="this.style.borderColor='var(--primary-purple)'" onblur="this.style.borderColor='rgba(255,255,255,0.1)'">
                 
-                <div id="time-display">00:00:00</div>
+                <div id="time-display" style="font-size: 6.5rem; font-weight: 700; color: var(--text-light); text-align: center; margin: 25px 0 40px 0; font-variant-numeric: tabular-nums; letter-spacing: -3px; text-shadow: 0 4px 20px rgba(0,0,0,0.3);">00:00:00</div>
                 
                 <div class="timer-controls">
-                    <button id="start-btn">▶ Başla</button>
-                    <button id="pause-btn">⏸ Beklet</button>
-                    <button id="stop-btn">⏹ Bitir & Kaydet</button>
+                    <button id="start-btn" style="padding: 15px 35px; font-size: 1.1rem; border-radius: 12px;">Çalışmaya Başla</button>
+                    <button id="pause-btn" style="padding: 15px 25px; font-size: 1rem; border-radius: 12px;">Durdur</button>
+                    <button id="stop-btn" style="padding: 15px 25px; font-size: 1rem; border-radius: 12px;">Bitir & Kaydet</button>
                 </div>
+            </div>
+
+            <div class="card" style="max-width: 600px; margin: 0 auto; padding: 30px 40px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+                    <h3 style="color: var(--text-light); font-size: 1.1rem; margin: 0; font-weight: 600;">Odak Ortamı</h3>
+                    <span style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); background: rgba(255,255,255,0.05); padding: 5px 12px; border-radius: 20px; letter-spacing: 0.5px;">ARKA PLAN SESLERİ</span>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; gap: 15px; margin-bottom: 25px;">
+                    <button id="btn-sound-rain" onclick="toggleSound('rain')" style="flex: 1; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); color: var(--text-light); padding: 15px; border-radius: 12px; cursor: pointer; transition: all 0.3s ease; font-size: 0.95rem; font-weight: 500;">Yağmur</button>
+                    <button id="btn-sound-cafe" onclick="toggleSound('cafe')" style="flex: 1; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); color: var(--text-light); padding: 15px; border-radius: 12px; cursor: pointer; transition: all 0.3s ease; font-size: 0.95rem; font-weight: 500;">Kafe</button>
+                    <button id="btn-sound-fire" onclick="toggleSound('fire')" style="flex: 1; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); color: var(--text-light); padding: 15px; border-radius: 12px; cursor: pointer; transition: all 0.3s ease; font-size: 0.95rem; font-weight: 500;">Şömine</button>
+                </div>
+
+               <iframe style="border-radius:12px; box-shadow: 0 10px 30px rgba(0,0,0,0.4);" src="https://open.spotify.com/embed/playlist/1Z3iSnZAgKqALmEnvehdgg?utm_source=generator&theme=0" width="100%" height="152" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+            </div>
+
+        </div>
+
+        <div id="tab-live" class="tab-content">
+            <div class="card" style="max-width: 800px; margin: 0 auto;">
+                <h2 style="text-align: center; margin-bottom: 5px; color: var(--text-light);">Sanal Kütüphane</h2>
+                <p style="text-align: center; color: var(--text-muted); font-size: 0.9em; margin-bottom: 25px;">Şu an seninle aynı sınava hazırlananlar odaklanmış durumda.</p>
+                <div id="live-users-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 15px;"></div>
             </div>
         </div>
 
         <div id="tab-stats" class="tab-content">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+            <div class="stats-grid">
                 <div class="card">
-                    <h2 style="margin-top: 0; color: #e2e8f0;">Ders Dağılımı</h2>
+                    <h2>Ders Dağılımı</h2>
                     <canvas id="studyChart"></canvas>
                 </div>
                 <div class="card">
-                    <h2 style="margin-top: 0; color: #e2e8f0;">Son Çalışmalar</h2>
-                    <ul id="session-list"></ul>
+                    <h2>Son Çalışmalar</h2>
+                    <div id="session-list"></div>
                 </div>
             </div>
         </div>
 
         <div id="tab-leaderboard" class="tab-content">
-            <div class="card" style="max-width: 700px; margin: 0 auto;">
-                <h2 style="margin-top: 0; text-align: center; color: #e2e8f0;">Global Liderlik Tablosu</h2>
-                <ul id="leaderboard-list"></ul>
+            <div class="card" style="max-width: 600px; margin: 0 auto;">
+                <h2 style="text-align: center; margin-bottom: 30px;">Global Sıralama</h2>
+                <div id="leaderboard-list"></div>
+            </div>
+        </div>
+
+        <div id="tab-todo" class="tab-content">
+            <div class="card" style="max-width: 650px; margin: 0 auto; padding: 20px 30px;">
+                <div class="calendar-strip" id="calendar-strip"></div>
+                <h2 style="margin-top: 10px; margin-bottom: 20px; color: var(--text-light); font-weight: 600;">Günlük Görevler</h2>
+                <div style="display: flex; gap: 10px; margin-bottom: 25px;">
+                    <input type="text" id="new-todo-input" placeholder="Bugün neleri halletmen gerekiyor?" style="flex: 1; margin: 0; box-sizing: border-box; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02); color: white;">
+                    <button id="add-todo-btn" style="padding: 12px 25px; border-radius: 8px;">Ekle</button>
+                </div>
+                <ul id="todo-list" style="list-style: none; padding: 0;"></ul>
             </div>
         </div>
 
     </main>
 
-    <div id="profile-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(8px); justify-content: center; align-items: center; z-index: 1000;">
-        <div style="background: linear-gradient(145deg, #1e293b, #0f172a); padding: 35px; border-radius: 20px; width: 360px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.8); border: 1px solid rgba(99, 102, 241, 0.3);">
-            <h2 style="margin-top: 0; display: flex; align-items: center; gap: 10px; font-size: 1.5em; border-bottom: 2px solid rgba(255,255,255,0.1); padding-bottom: 15px;">
-                <span style="background: linear-gradient(135deg, #a855f7, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">⚙️ Profil Ayarları</span>
-            </h2>
-            <label style="display: block; margin-top: 25px; font-weight: 700; color: #94a3b8; font-size: 0.85em; letter-spacing: 0.5px;">KULLANICI ADI</label>
-            <input type="text" id="modal-name" style="width: 100%; padding: 12px 15px; margin-top: 8px; border-radius: 10px; border: 1px solid #334155; font-size: 1em; color: white; background: #0f172a; outline: none; box-sizing: border-box;" onfocus="this.style.borderColor='#a855f7'" onblur="this.style.borderColor='#334155'">
-            <div style="display: flex; gap: 15px; margin-top: 20px;">
+    <div id="profile-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>Kullanıcı Ayarları</h3>
+            <label class="modal-label">KULLANICI ADI</label>
+            <input type="text" id="modal-name" placeholder="Adınızı girin">
+            
+            <label class="modal-label" style="margin-top: 15px;">HEDEF SINAV</label>
+            <select id="modal-exam">
+                <option value="Genel" style="color: black;">Genel Odaklanma</option>
+                <option value="YKS" style="color: black;">YKS (Üniversite)</option>
+                <option value="TUS" style="color: black;">TUS (Tıpta Uzmanlık)</option>
+                <option value="DUS" style="color: black;">DUS (Diş Hekimliği)</option>
+                <option value="KPSS" style="color: black;">KPSS (Memurluk)</option>
+                <option value="LGS" style="color: black;">LGS (Lise)</option>
+            </select>
+            
+            <div style="display: flex; gap: 15px; margin-top: 15px;">
                 <div style="flex: 1;">
-                    <label style="font-weight: 700; color: #94a3b8; font-size: 0.85em;">HEDEF (SAAT)</label>
-                    <input type="number" id="modal-hours" style="width: 100%; padding: 12px 15px; margin-top: 8px; border-radius: 10px; border: 1px solid #334155; font-size: 1em; color: white; background: #0f172a; box-sizing: border-box;" min="0" onfocus="this.style.borderColor='#a855f7'" onblur="this.style.borderColor='#334155'">
+                    <label class="modal-label">HEDEF (SAAT)</label>
+                    <input type="number" id="modal-hours" min="0" placeholder="0">
                 </div>
                 <div style="flex: 1;">
-                    <label style="font-weight: 700; color: #94a3b8; font-size: 0.85em;">HEDEF (DAKİKA)</label>
-                    <input type="number" id="modal-minutes" style="width: 100%; padding: 12px 15px; margin-top: 8px; border-radius: 10px; border: 1px solid #334155; font-size: 1em; color: white; background: #0f172a; box-sizing: border-box;" min="0" max="59" onfocus="this.style.borderColor='#a855f7'" onblur="this.style.borderColor='#334155'">
+                    <label class="modal-label">HEDEF (DAKİKA)</label>
+                    <input type="number" id="modal-minutes" min="0" max="59" placeholder="30">
                 </div>
             </div>
-            <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 35px;">
-                <button id="modal-cancel-btn" style="background: rgba(255,255,255,0.1); color: #e2e8f0; border: none; padding: 12px 20px; border-radius: 10px; cursor: pointer; font-weight: bold; transition: 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">İptal</button>
-                <button id="modal-save-btn" style="background: linear-gradient(135deg, #a855f7, #ec4899); color: white; border: none; padding: 12px 25px; border-radius: 10px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 15px rgba(168, 85, 247, 0.4);">Kaydet</button>
+
+            <div style="margin-top: 25px; padding-top: 15px; border-top: 1px solid rgba(239, 68, 68, 0.2);">
+                <label class="modal-label" style="color: #EF4444;">TEHLİKELİ BÖLGE</label>
+                <button id="reset-data-btn" style="width: 100%; background: transparent; border: 1px solid rgba(239, 68, 68, 0.5); color: #EF4444; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: 0.2s;">Tüm Verilerimi Sıfırla</button>
+            </div>
+            
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 25px;">
+                <button id="modal-cancel-btn" style="background: transparent; border: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); box-shadow: none;">İptal</button>
+                <button id="modal-save-btn">Değişiklikleri Kaydet</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="custom-dialog" class="modal-overlay" style="z-index: 2000;">
+        <div class="modal-content" style="text-align: center; width: 320px;">
+            <div id="dialog-icon" style="font-size: 3rem; margin-bottom: 10px;"></div>
+            <h3 id="dialog-title" style="margin-top: 0; margin-bottom: 10px; color: var(--text-light);">Emin misin?</h3>
+            <p id="dialog-message" style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 25px; line-height: 1.5;"></p>
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button id="dialog-cancel-btn" style="flex: 1; background: transparent; border: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); padding: 10px; border-radius: 8px; cursor: pointer; font-weight: 600;">İptal</button>
+                <button id="dialog-confirm-btn" style="flex: 1; border: none; color: white; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold;"></button>
             </div>
         </div>
     </div>
 
     <script>
         function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            
             document.getElementById('tab-' + tabId).classList.add('active');
             document.getElementById('nav-' + tabId).classList.add('active');
+            
+            if (tabId === 'live' && window.loadLiveUsers) {
+                window.loadLiveUsers();
+            }
         }
     </script>
-
     <script src="js/api.js"></script>
-    <script src="js/auth.js"></script>
-    <script src="js/timer.js"></script>
+    <script src="js/timer.js"></script> 
     <script src="js/charts.js"></script>
 </body>
 </html>
