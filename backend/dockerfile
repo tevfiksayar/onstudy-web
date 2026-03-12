@@ -1,14 +1,19 @@
-# 1. Aşama: Uygulamayı Derle (Build)
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS build
 WORKDIR /app
-COPY . ./
-RUN dotnet publish -c Release -o out
 
-# 2. Aşama: Çalıştır (Run)
-FROM mcr.microsoft.com/dotnet/aspnet:8.0
+# Sadece csproj'u kopyala ve net8.0 olduğunu zorla
+COPY Backend.csproj ./
+RUN dotnet restore
+
+# Kalan her şeyi kopyala
+COPY . ./
+RUN dotnet publish -c Release -o out /p:TargetFramework=net8.0
+
+FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine
 WORKDIR /app
 COPY --from=build /app/out .
-EXPOSE 8080
+
 ENV ASPNETCORE_URLS=http://+:8080
+EXPOSE 8080
 
 ENTRYPOINT ["dotnet", "Backend.dll"]
