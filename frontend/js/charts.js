@@ -36,9 +36,9 @@ async function initUserAndLoadData() {
             updateRecentSessions(sessionsData);
             updateChart(sessionsData);
             checkStreak(sessionsData);
-            renderFOMO(sessionsData); 
             
             loadLeaderboard(userProfile.targetExam || "Genel");
+            loadAverageStat(userProfile.targetExam || "Genel"); // Yeni Banner Tetikleyicisi
             loadTodos();
             renderCalendarStrip(); 
             
@@ -423,61 +423,7 @@ window.checkForPokes = async function() {
 
 setInterval(window.checkForPokes, 10000);
 
-const examDates = {
-    "YKS": "2026-06-20",
-    "TUS": "2026-08-09",
-    "DUS": "2026-10-11",
-    "KPSS": "2026-07-19",
-    "LGS": "2026-06-07"
-};
 
-function renderFOMO(sessionsData) {
-    const fomoCard = document.getElementById('fomo-card');
-    if (!userProfile || !userProfile.targetExam || userProfile.targetExam === "Genel") {
-        fomoCard.style.display = 'none'; 
-        return;
-    }
-
-    const targetDateStr = examDates[userProfile.targetExam];
-    if (!targetDateStr) return;
-
-    const targetDate = new Date(targetDateStr);
-    const today = new Date();
-    const diffTime = targetDate - today;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    document.getElementById('fomo-title').textContent = `${userProfile.targetExam} Sınavına`;
-    document.getElementById('fomo-countdown').textContent = `${diffDays > 0 ? diffDays : 0} Gün Kaldı`;
-
-    let userTodaySecs = 0;
-    const todayStr = new Date().toLocaleDateString();
-    sessionsData.forEach(s => { 
-        if (new Date(s.date).toLocaleDateString() === todayStr) userTodaySecs += s.durationInSeconds; 
-    });
-
-    let rivalSecs = 10800; 
-    if (userTodaySecs > 10800) rivalSecs = userTodaySecs + 1800; 
-    if (userTodaySecs > 21600) rivalSecs = userTodaySecs - 3600; 
-
-    const formatTime = (totalSecs) => {
-        const h = Math.floor(totalSecs / 3600);
-        const m = Math.floor((totalSecs % 3600) / 60);
-        return h > 0 ? `${h} saat ${m} dk` : `${m} dk`;
-    };
-
-    const fomoMessage = document.getElementById('fomo-message');
-    fomoCard.style.display = 'block';
-
-    if (userTodaySecs >= rivalSecs && userTodaySecs > 0) {
-        fomoMessage.innerHTML = `İnanılmaz! Bugün seninle aynı sınava hazırlanan rakiplerin ortalama <b>${formatTime(rivalSecs)}</b> çalıştı. Sen <b>${formatTime(userTodaySecs)}</b> çalışarak %90'lık kesimi geride bıraktın!`;
-        fomoMessage.style.color = "#10B981"; 
-    } else {
-        fomoMessage.innerHTML = `Uyarı: Bugün seninle aynı sınava hazırlanan rakiplerin ortalama <b>${formatTime(rivalSecs)}</b> çalıştı. Sen henüz <b>${formatTime(userTodaySecs)}</b> çalıştın. Aradaki farkı kapatman lazım!`;
-        fomoMessage.style.color = "#FCA5A5"; 
-    }
-}
-
-// --- YENİ: GELİŞMİŞ LOBİ VE GRUP ODASI SİSTEMİ ---
 window.activeRoomId = null;
 window.activeRoomName = "";
 let privateRoomInterval = null;
@@ -566,7 +512,7 @@ window.joinRoomDirectly = async function(roomId, roomName) {
     try {
         await fetch("http://localhost:5195/api/private/join", {
             method: "POST", headers: {"Content-Type":"application/json"},
-            body: JSON.stringify({ userId: currentUserUid, displayName: currentDisplayName, roomId: roomId }) // DÜZELTİLDİ: Artık ismi %100 bulacak
+            body: JSON.stringify({ userId: currentUserUid, displayName: currentDisplayName, roomId: roomId })
         });
         
         document.getElementById('lobby-screen').style.display = 'none';
@@ -585,7 +531,6 @@ window.leavePrivateRoom = async function() {
     try {
         await fetch("http://localhost:5195/api/private/leave", {
             method: "POST", headers: {"Content-Type":"application/json"},
-            // DÜZELTME: Artık çıkarken "roomId" verisini de gönderiyoruz ki odayı silebilsin!
             body: JSON.stringify({ userId: currentUserUid, roomId: activeRoomId }) 
         });
         window.activeRoomId = null;
@@ -636,12 +581,42 @@ window.sendChatMessage = async function() {
     try {
         await fetch("http://localhost:5195/api/private/chat", {
             method: "POST", headers: {"Content-Type":"application/json"},
-            body: JSON.stringify({ roomId: activeRoomId, senderName: currentDisplayName, text: text }) // DÜZELTİLDİ: İsim hatası giderildi.
+            body: JSON.stringify({ roomId: activeRoomId, senderName: currentDisplayName, text: text })
         });
         refreshPrivateRoom(); 
     } catch(err) { console.error("Mesaj gönderilemedi:", err); }
 };
 
 window.addEventListener('beforeunload', () => { if(activeRoomId) leavePrivateRoom(); });
+
+// --- YENİ: TOKSİK OLMAYAN SOSYAL KANIT (ORTALAMA ÇALIŞMA SÜRESİ) ---
+async function loadAverageStat(exam) {
+    if (!exam || exam === "Genel") {
+        const banner = document.getElementById('average-stat-banner');
+        if (banner) banner.style.display = 'none';
+        return;
+    }
+    
+    try {
+        const res = await fetch(backendLeaderboardUrl + exam);
+        const leaders = await res.json();
+        
+        if (leaders.length > 0) {
+            let totalSeconds = 0;
+            leaders.forEach(l => totalSeconds += l.totalSeconds);
+            
+            let avgSeconds = Math.floor(totalSeconds / leaders.length);
+            let h = Math.floor(avgSeconds / 3600);
+            let m = Math.floor((avgSeconds % 3600) / 60);
+            let timeStr = h > 0 ? `${h} saat ${m} dk` : `${m} dk`;
+            
+            const banner = document.getElementById('average-stat-banner');
+            if (banner) {
+                banner.innerHTML = `💡 <b>İlham Verici Bir Bilgi:</b> <b>${exam}</b> hedefine koşan topluluğumuz, kişi başı ortalama <b>${timeStr}</b> odaklandı. Sen de bu ekibin harika bir parçasısın!`;
+                banner.style.display = 'block';
+            }
+        }
+    } catch(err) { console.error("Ortalama istatistik çekilemedi", err); }
+}
 
 window.loadDashboardData = initUserAndLoadData;
