@@ -31,7 +31,6 @@ if (!string.IsNullOrEmpty(firebaseJson)) {
 }
 // ----------------------------------------
 
-// ... (Buradan sonrası kodundaki // 1. SESSIONS ve diğer app.MapGet kısımları aynen devam ediyor) ...
 // 1. SESSIONS 
 app.MapPost("/api/sessions", async (StudySession session) => {
     Dictionary<string, object> data = new() {
@@ -229,7 +228,7 @@ app.MapGet("/api/pokes/{userId}", async (string userId) => {
     return Results.Ok(pokes);
 });
 
-// --- 6. GELİŞMİŞ GRUP ODALARI VE LOBİ (ZOOM STİLİ) ---
+// --- 6. GELİŞMİŞ GRUP ODALARI VE LOBİ ---
 app.MapGet("/api/rooms", async () => {
     QuerySnapshot snap = await db.Collection("active_rooms").GetSnapshotAsync();
     var rooms = new List<object>();
@@ -273,13 +272,13 @@ app.MapPost("/api/private/join", async (PrivateRoomUser user) => {
     Dictionary<string, object> data = new() { 
         { "userId", user.UserId ?? "unknown" }, 
         { "displayName", user.DisplayName ?? "Öğrenci" }, 
-        { "roomId", user.RoomId ?? "genel" } 
+        { "roomId", user.RoomId ?? "genel" },
+        { "lastSeen", FieldValue.ServerTimestamp } // YENİ: Zombi odaları temizlemek için
     };
     await db.Collection("private_users").Document(user.UserId ?? "unknown").SetAsync(data);
     return Results.Ok();
 });
 
-// ÇIKIŞ YAPMA VE ODAYI TEMİZLEME (SORUNSUZ VERSİYON)
 app.MapPost("/api/private/leave", async (PrivateRoomUser user) => {
     if (!string.IsNullOrEmpty(user.UserId)) {
         await db.Collection("private_users").Document(user.UserId).DeleteAsync();
@@ -344,6 +343,50 @@ app.MapGet("/api/private/{roomId}/chat", async (string roomId) => {
     return Results.Ok(msgs);
 });
 
+// --- YENİ: KALP ATIŞI VE SÜPÜRGE METODLARI ---
+
+// Kalp atışını yakalar ve lastSeen süresini günceller
+app.MapPost("/api/private/heartbeat", async (HeartbeatRequest req) => {
+    if (!string.IsNullOrEmpty(req.UserId)) {
+        await db.Collection("private_users").Document(req.UserId).UpdateAsync("lastSeen", FieldValue.ServerTimestamp);
+    }
+    return Results.Ok();
+});
+
+// Otomatik temizlik fonksiyonu
+app.MapPost("/api/private/cleanup", async () => {
+    // 5 dakika öncesinin zaman damgası
+    Timestamp threshold = Timestamp.FromDateTime(DateTime.UtcNow.AddMinutes(-5));
+
+    // 1. Aktif olmayan kullanıcıları bul ve sil
+    var inactiveUsers = await db.Collection("private_users")
+                                .WhereLessThan("lastSeen", threshold) // DÜZELTİLDİ
+                                .GetSnapshotAsync();
+
+    foreach (var doc in inactiveUsers.Documents) {
+        await doc.Reference.DeleteAsync();
+    }
+
+    // 2. İçinde kimse kalmayan odaları bul ve sil
+    var rooms = await db.Collection("active_rooms").GetSnapshotAsync(); // DÜZELTİLDİ: "active_rooms" olmalıydı
+    foreach (var roomDoc in rooms.Documents) {
+        var roomId = roomDoc.Id;
+        var usersInRoom = await db.Collection("private_users")
+                                   .WhereEqualTo("roomId", roomId) // DÜZELTİLDİ: "roomId" olmalıydı
+                                   .GetSnapshotAsync();
+        
+        if (usersInRoom.Count == 0) {
+            await roomDoc.Reference.DeleteAsync();
+            // Odaların mesajlarını da silebiliriz (İsteğe bağlı temizlik)
+            var oldChats = await db.Collection("private_chats").WhereEqualTo("roomId", roomId).GetSnapshotAsync();
+            foreach (var chat in oldChats.Documents) {
+                await chat.Reference.DeleteAsync();
+            }
+        }
+    }
+    return Results.Ok(new { message = "Temizlik tamamlandı." });
+});
+
 app.Run();
 
 // MODELLER
@@ -357,3 +400,4 @@ public class PrivateRoomUser { public string? UserId { get; set; } public string
 public class ChatMessage { public string? RoomId { get; set; } public string? SenderName { get; set; } public string? Text { get; set; } }
 public class CreateRoomReq { public string Name { get; set; } = ""; public string? Password { get; set; } public string Creator { get; set; } = ""; }
 public class VerifyRoomReq { public string RoomId { get; set; } = ""; public string? Password { get; set; } }
+public class HeartbeatRequest { public string UserId { get; set; } = ""; public string RoomId { get; set; } = ""; } 

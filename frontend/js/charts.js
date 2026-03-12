@@ -38,7 +38,7 @@ async function initUserAndLoadData() {
             checkStreak(sessionsData);
             
             loadLeaderboard(userProfile.targetExam || "Genel");
-            loadAverageStat(userProfile.targetExam || "Genel"); // Yeni Banner Tetikleyicisi
+            loadAverageStat(userProfile.targetExam || "Genel");
             loadTodos();
             renderCalendarStrip(); 
             
@@ -589,7 +589,6 @@ window.sendChatMessage = async function() {
 
 window.addEventListener('beforeunload', () => { if(activeRoomId) leavePrivateRoom(); });
 
-// --- YENİ: TOKSİK OLMAYAN SOSYAL KANIT (ORTALAMA ÇALIŞMA SÜRESİ) ---
 async function loadAverageStat(exam) {
     if (!exam || exam === "Genel") {
         const banner = document.getElementById('average-stat-banner');
@@ -618,5 +617,28 @@ async function loadAverageStat(exam) {
         }
     } catch(err) { console.error("Ortalama istatistik çekilemedi", err); }
 }
+
+// --- YENİ EKLENEN KISIM: KALP ATIŞI VE OTOMATİK TEMİZLİK TETİKLEYİCİSİ ---
+
+// 1. Her 2 dakikada bir "Ben buradayım" (Heartbeat) sinyali gönderir
+setInterval(async () => {
+    if (window.activeRoomId && currentUserUid) {
+        try {
+            await fetch(`https://onstudy-api.onrender.com/api/private/heartbeat`, {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({ userId: currentUserUid, roomId: window.activeRoomId })
+            });
+        } catch(err) { console.error("Heartbeat gönderilemedi:", err); }
+    }
+}, 120000); // 120,000 milisaniye = 2 dakika
+
+// 2. Sayfa her yüklendiğinde genel bir zombi temizliği (Cleanup) tetikler
+window.addEventListener('load', () => {
+    try {
+        fetch("https://onstudy-api.onrender.com/api/private/cleanup", { method: "POST" });
+    } catch(err) { console.error("Cleanup tetikleme hatası:", err); }
+});
+// --------------------------------------------------------------------------
 
 window.loadDashboardData = initUserAndLoadData;
