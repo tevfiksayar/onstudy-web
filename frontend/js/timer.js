@@ -112,7 +112,7 @@ async function saveSession() {
     };
 
     try {
-        await fetch("http://localhost:5195/api/sessions", {
+        await fetch("https://onstudy-api.onrender.com/api/sessions", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(sessionData)

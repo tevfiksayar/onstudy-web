@@ -1,7 +1,7 @@
-const backendBaseUrl = "http://localhost:5195/api/sessions/";
-const backendUsersUrl = "http://localhost:5195/api/users/";
-const backendLeaderboardUrl = "http://localhost:5195/api/leaderboard/";
-const backendTodoUrl = "http://localhost:5195/api/todos/";
+const backendBaseUrl = "https://onstudy-api.onrender.com/api/sessions/";
+const backendUsersUrl = "https://onstudy-api.onrender.com/api/users/";
+const backendLeaderboardUrl = "https://onstudy-api.onrender.com/api/leaderboard/";
+const backendTodoUrl = "https://onstudy-api.onrender.com/api/todos/";
 let studyChartInstance = null; 
 let currentUserUid = null;
 let currentDisplayName = null;
@@ -128,7 +128,7 @@ if (resetBtn) {
     resetBtn.addEventListener('click', async () => {
         showCustomDialog("Tehlikeli Bölge", "Tüm çalışma geçmişin, grafiklerin, serin ve görevlerin SİLİNECEK. Bunu geri alamazsın. Emin misin?", "", "Her Şeyi Sıfırla", "#EF4444", async () => {
             try {
-                await fetch(`http://localhost:5195/api/users/${currentUserUid}/reset`, { method: 'DELETE' });
+                await fetch(`https://onstudy-api.onrender.com/api/users/${currentUserUid}/reset`, { method: 'DELETE' });
                 showCustomDialog("Sıfırlandı!", "Tüm verilerin temizlendi. Temiz bir sayfa açılıyor.", "", "Tamam", "var(--primary-purple)", () => location.reload());
             } catch (err) { console.error("Sıfırlama hatası:", err); }
         });
@@ -197,7 +197,7 @@ document.getElementById('add-todo-btn').addEventListener('click', async () => {
     const input = document.getElementById('new-todo-input');
     if(!input.value.trim()) return;
     
-    await fetch('http://localhost:5195/api/todos', {
+    await fetch('https://onstudy-api.onrender.com/api/todos', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: currentUserUid, title: input.value, isCompleted: false, date: selectedDateStr })
     });
@@ -206,12 +206,12 @@ document.getElementById('add-todo-btn').addEventListener('click', async () => {
 });
 
 async function toggleTodo(id, newState) {
-    await fetch(`http://localhost:5195/api/todos/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ isCompleted: newState }) });
+    await fetch(`https://onstudy-api.onrender.com/api/todos/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ isCompleted: newState }) });
     loadTodos();
 }
 
 async function deleteTodo(id) {
-    await fetch(`http://localhost:5195/api/todos/${id}`, { method: 'DELETE' });
+    await fetch(`https://onstudy-api.onrender.com/api/todos/${id}`, { method: 'DELETE' });
     loadTodos();
 }
 
@@ -339,7 +339,7 @@ function updateChart(sessions) {
 window.joinLiveRoom = async function(subjectName) {
     if(!currentUserUid || !userProfile) return;
     try {
-        await fetch("http://localhost:5195/api/live/join", {
+        await fetch("https://onstudy-api.onrender.com/api/live/join", {
             method: "POST", headers: {"Content-Type":"application/json"},
             body: JSON.stringify({ userId: currentUserUid, displayName: userProfile.displayName, exam: userProfile.targetExam || "Genel", subject: subjectName })
         });
@@ -349,7 +349,7 @@ window.joinLiveRoom = async function(subjectName) {
 window.leaveLiveRoom = async function() {
     if(!currentUserUid) return;
     try {
-        await fetch("http://localhost:5195/api/live/leave", {
+        await fetch("https://onstudy-api.onrender.com/api/live/leave", {
             method: "POST", headers: {"Content-Type":"application/json"},
             body: JSON.stringify({ userId: currentUserUid, displayName: "", exam: "", subject: "" })
         });
@@ -360,7 +360,7 @@ window.loadLiveUsers = async function() {
     if (!userProfile) return;
     const exam = userProfile.targetExam || "Genel";
     try {
-        const response = await fetch(`http://localhost:5195/api/live/${exam}`);
+        const response = await fetch(`https://onstudy-api.onrender.com/api/live/${exam}`);
         const liveUsers = await response.json();
         
         const grid = document.getElementById('live-users-grid');
@@ -392,7 +392,7 @@ window.loadLiveUsers = async function() {
 
 window.sendPoke = async function(targetUserId, targetName) {
     try {
-        await fetch("http://localhost:5195/api/pokes", {
+        await fetch("https://onstudy-api.onrender.com/api/pokes", {
             method: "POST",
             headers: {"Content-Type": "application/json"},
             body: JSON.stringify({
@@ -409,7 +409,7 @@ window.sendPoke = async function(targetUserId, targetName) {
 window.checkForPokes = async function() {
     if(!currentUserUid) return;
     try {
-        const response = await fetch(`http://localhost:5195/api/pokes/${currentUserUid}`);
+        const response = await fetch(`https://onstudy-api.onrender.com/api/pokes/${currentUserUid}`);
         const pokes = await response.json();
         
         if(pokes.length > 0) {
@@ -430,7 +430,7 @@ let privateRoomInterval = null;
 
 window.loadLobbyRooms = async function() {
     try {
-        const response = await fetch("http://localhost:5195/api/rooms");
+        const response = await fetch("https://onstudy-api.onrender.com/api/rooms");
         const rooms = await response.json();
         const grid = document.getElementById('lobby-grid');
         grid.innerHTML = '';
@@ -469,7 +469,7 @@ window.createNewRoom = async function() {
     if(!name) { alert("Oda adı boş olamaz!"); return; }
 
     try {
-        const res = await fetch("http://localhost:5195/api/rooms", {
+        const res = await fetch("https://onstudy-api.onrender.com/api/rooms", {
             method: "POST", headers: {"Content-Type":"application/json"},
             body: JSON.stringify({ name: name, password: pass, creator: currentDisplayName })
         });
@@ -490,7 +490,7 @@ window.attemptJoinRoom = async function(roomId, roomName, isLocked) {
         if (pass === null) return; 
         
         try {
-            const res = await fetch("http://localhost:5195/api/rooms/verify", {
+            const res = await fetch("https://onstudy-api.onrender.com/api/rooms/verify", {
                 method: "POST", headers: {"Content-Type":"application/json"},
                 body: JSON.stringify({ roomId: roomId, password: pass })
             });
@@ -510,7 +510,7 @@ window.joinRoomDirectly = async function(roomId, roomName) {
     window.activeRoomName = roomName;
     
     try {
-        await fetch("http://localhost:5195/api/private/join", {
+        await fetch("https://onstudy-api.onrender.com/api/private/join", {
             method: "POST", headers: {"Content-Type":"application/json"},
             body: JSON.stringify({ userId: currentUserUid, displayName: currentDisplayName, roomId: roomId })
         });
@@ -529,7 +529,7 @@ window.leavePrivateRoom = async function() {
     if(!currentUserUid) return;
     clearInterval(privateRoomInterval);
     try {
-        await fetch("http://localhost:5195/api/private/leave", {
+        await fetch("https://onstudy-api.onrender.com/api/private/leave", {
             method: "POST", headers: {"Content-Type":"application/json"},
             body: JSON.stringify({ userId: currentUserUid, roomId: activeRoomId }) 
         });
@@ -543,7 +543,7 @@ window.leavePrivateRoom = async function() {
 window.refreshPrivateRoom = async function() {
     if(!activeRoomId) return;
     try {
-        const uRes = await fetch(`http://localhost:5195/api/private/${activeRoomId}/users`);
+        const uRes = await fetch(`https://onstudy-api.onrender.com/api/private/${activeRoomId}/users`);
         const users = await uRes.json();
         const uList = document.getElementById('private-users-list');
         uList.innerHTML = '';
@@ -558,7 +558,7 @@ window.refreshPrivateRoom = async function() {
     } catch(err) {}
 
     try {
-        const cRes = await fetch(`http://localhost:5195/api/private/${activeRoomId}/chat`);
+        const cRes = await fetch(`https://onstudy-api.onrender.com/api/private/${activeRoomId}/chat`);
         const msgs = await cRes.json();
         const cBox = document.getElementById('chat-box');
         const isScrolledToBottom = cBox.scrollHeight - cBox.clientHeight <= cBox.scrollTop + 10;
@@ -579,7 +579,7 @@ window.sendChatMessage = async function() {
     input.value = ''; 
     
     try {
-        await fetch("http://localhost:5195/api/private/chat", {
+        await fetch("https://onstudy-api.onrender.com/api/private/chat", {
             method: "POST", headers: {"Content-Type":"application/json"},
             body: JSON.stringify({ roomId: activeRoomId, senderName: currentDisplayName, text: text })
         });
