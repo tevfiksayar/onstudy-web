@@ -26,20 +26,22 @@ const passwordInput = document.getElementById('password');
 // Giriş (Sign In) ve Kayıt (Sign Up) modları arasında geçiş yapmak için bayrak
 let isSignUpMode = false;
 
-// 3. MOD DEĞİŞTİRME (Sign In <-> Sign Up)
+/// 3. MOD DEĞİŞTİRME (Sign In <-> Sign Up)
 toggleAuth.addEventListener('click', (e) => {
     e.preventDefault();
     isSignUpMode = !isSignUpMode;
 
     if (isSignUpMode) {
-        formTitle.textContent = "Giriş Yap";
-        submitBtn.textContent = "Giriş Yap";
+        // KAYIT OLMA MODU
+        formTitle.textContent = "Kayıt Ol";
+        submitBtn.textContent = "Kayıt Ol";
         toggleAuth.innerHTML = "Giriş Yap";
-        toggleAuth.parentElement.firstChild.textContent = "Heabın var mı? ";
+        toggleAuth.parentElement.firstChild.textContent = "Zaten hesabın var mı? ";
     } else {
+        // GİRİŞ YAPMA MODU
         formTitle.textContent = "Giriş Yap";
         submitBtn.textContent = "Giriş Yap";
-        toggleAuth.innerHTML = "Giriş Yap";
+        toggleAuth.innerHTML = "Kayıt Ol";
         toggleAuth.parentElement.firstChild.textContent = "Hesabın yok mu? ";
     }
 });
