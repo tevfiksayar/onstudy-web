@@ -71,6 +71,9 @@ app.MapGet("/api/users/{userId}", async (string userId) => {
 });
 
 app.MapPost("/api/users", async (UserProfile profile) => {
+    // GÜVENLİK NOTU: "role" verisini bilerek buradan kaydetmiyoruz!
+    // Eğer kaydetseydik, kötü niyetli biri frontend'den "role: admin" gönderip kendini admin yapabilirdi.
+    // Rolleri sadece Firebase Console'dan (Manuel) yöneteceğiz.
     Dictionary<string, object> data = new() {
         { "userId", profile.UserId },
         { "displayName", profile.DisplayName ?? "Öğrenci" },
@@ -273,7 +276,7 @@ app.MapPost("/api/private/join", async (PrivateRoomUser user) => {
         { "userId", user.UserId ?? "unknown" }, 
         { "displayName", user.DisplayName ?? "Öğrenci" }, 
         { "roomId", user.RoomId ?? "genel" },
-        { "lastSeen", FieldValue.ServerTimestamp } // YENİ: Zombi odaları temizlemek için
+        { "lastSeen", FieldValue.ServerTimestamp } 
     };
     await db.Collection("private_users").Document(user.UserId ?? "unknown").SetAsync(data);
     return Results.Ok();
@@ -343,9 +346,8 @@ app.MapGet("/api/private/{roomId}/chat", async (string roomId) => {
     return Results.Ok(msgs);
 });
 
-// --- YENİ: KALP ATIŞI VE SÜPÜRGE METODLARI ---
+// --- 7. KALP ATIŞI VE SÜPÜRGE METODLARI ---
 
-// Kalp atışını yakalar ve lastSeen süresini günceller
 app.MapPost("/api/private/heartbeat", async (HeartbeatRequest req) => {
     if (!string.IsNullOrEmpty(req.UserId)) {
         await db.Collection("private_users").Document(req.UserId).UpdateAsync("lastSeen", FieldValue.ServerTimestamp);
@@ -353,31 +355,26 @@ app.MapPost("/api/private/heartbeat", async (HeartbeatRequest req) => {
     return Results.Ok();
 });
 
-// Otomatik temizlik fonksiyonu
 app.MapPost("/api/private/cleanup", async () => {
-    // 5 dakika öncesinin zaman damgası
     Timestamp threshold = Timestamp.FromDateTime(DateTime.UtcNow.AddMinutes(-5));
 
-    // 1. Aktif olmayan kullanıcıları bul ve sil
     var inactiveUsers = await db.Collection("private_users")
-                                .WhereLessThan("lastSeen", threshold) // DÜZELTİLDİ
+                                .WhereLessThan("lastSeen", threshold) 
                                 .GetSnapshotAsync();
 
     foreach (var doc in inactiveUsers.Documents) {
         await doc.Reference.DeleteAsync();
     }
 
-    // 2. İçinde kimse kalmayan odaları bul ve sil
-    var rooms = await db.Collection("active_rooms").GetSnapshotAsync(); // DÜZELTİLDİ: "active_rooms" olmalıydı
+    var rooms = await db.Collection("active_rooms").GetSnapshotAsync(); 
     foreach (var roomDoc in rooms.Documents) {
         var roomId = roomDoc.Id;
         var usersInRoom = await db.Collection("private_users")
-                                   .WhereEqualTo("roomId", roomId) // DÜZELTİLDİ: "roomId" olmalıydı
+                                   .WhereEqualTo("roomId", roomId) 
                                    .GetSnapshotAsync();
         
         if (usersInRoom.Count == 0) {
             await roomDoc.Reference.DeleteAsync();
-            // Odaların mesajlarını da silebiliriz (İsteğe bağlı temizlik)
             var oldChats = await db.Collection("private_chats").WhereEqualTo("roomId", roomId).GetSnapshotAsync();
             foreach (var chat in oldChats.Documents) {
                 await chat.Reference.DeleteAsync();
@@ -387,10 +384,44 @@ app.MapPost("/api/private/cleanup", async () => {
     return Results.Ok(new { message = "Temizlik tamamlandı." });
 });
 
+// --- YENİ 8. ADMIN KONTROLLÜ ZORLA ODA SİLME (ZOMBİ AVI) ---
+app.MapDelete("/api/admin/rooms/{roomId}/{adminId}", async (string roomId, string adminId) => {
+    // 1. İşlemi yapan kişi gerçekten Admin mi kontrol et
+    var userSnap = await db.Collection("users").Document(adminId).GetSnapshotAsync();
+    if (!userSnap.Exists) return Results.Unauthorized();
+    
+    var userDict = userSnap.ToDictionary();
+    if (!userDict.ContainsKey("role") || userDict["role"].ToString() != "admin") {
+        return Results.Unauthorized(); // Admin değilse işlemi reddet
+    }
+
+    // 2. Odayı ve içindeki tüm kalıntıları acımasızca yok et
+    await db.Collection("active_rooms").Document(roomId).DeleteAsync();
+    
+    var roomUsers = await db.Collection("private_users").WhereEqualTo("roomId", roomId).GetSnapshotAsync();
+    foreach (var u in roomUsers.Documents) await u.Reference.DeleteAsync();
+    
+    var roomChats = await db.Collection("private_chats").WhereEqualTo("roomId", roomId).GetSnapshotAsync();
+    foreach (var c in roomChats.Documents) await c.Reference.DeleteAsync();
+
+    return Results.Ok(new { message = "Oda ve içindekiler tamamen silindi." });
+});
+
 app.Run();
 
 // MODELLER
-public class UserProfile { public string UserId { get; set; } = ""; public string DisplayName { get; set; } = ""; public int DailyGoalSeconds { get; set; } public int StreakCount { get; set; } public string? LastGoalMetDate { get; set; } public string TargetExam { get; set; } = "Genel"; }
+public class UserProfile { 
+    public string UserId { get; set; } = ""; 
+    public string DisplayName { get; set; } = ""; 
+    public int DailyGoalSeconds { get; set; } 
+    public int StreakCount { get; set; } 
+    public string? LastGoalMetDate { get; set; } 
+    public string TargetExam { get; set; } = "Genel";
+    
+    // YENİ EKLENEN ROL SİSTEMİ (Mülakatlarda "RBAC mimarisi kurdum" diyeceğin yer)
+    public string Role { get; set; } = "user"; 
+}
+
 public class StudySession { public string? Id { get; set; } public string? UserId { get; set; } public string? Subject { get; set; } public int DurationInSeconds { get; set; } public string? Date { get; set; } }
 public class LeaderboardEntry { public string DisplayName { get; set; } = ""; public int TotalSeconds { get; set; } }
 public class TodoItem { public string? Id { get; set; } public string? UserId { get; set; } public string? Title { get; set; } public bool IsCompleted { get; set; } public string? Date { get; set; } }
@@ -400,4 +431,4 @@ public class PrivateRoomUser { public string? UserId { get; set; } public string
 public class ChatMessage { public string? RoomId { get; set; } public string? SenderName { get; set; } public string? Text { get; set; } }
 public class CreateRoomReq { public string Name { get; set; } = ""; public string? Password { get; set; } public string Creator { get; set; } = ""; }
 public class VerifyRoomReq { public string RoomId { get; set; } = ""; public string? Password { get; set; } }
-public class HeartbeatRequest { public string UserId { get; set; } = ""; public string RoomId { get; set; } = ""; } 
+public class HeartbeatRequest { public string UserId { get; set; } = ""; public string RoomId { get; set; } = ""; }

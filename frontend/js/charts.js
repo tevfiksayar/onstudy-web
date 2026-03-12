@@ -27,6 +27,13 @@ async function initUserAndLoadData() {
             openProfileModal(true);
         } else {
             userProfile = await profileResponse.json();
+            
+            // YENİ: Eğer giren kişi Admin ise özel butonu göster
+            if (userProfile.role === "admin") {
+                const adminBtn = document.getElementById('admin-panel-btn');
+                if(adminBtn) adminBtn.style.display = "inline-block";
+            }
+            
             currentDisplayName = userProfile.displayName || currentDisplayName;
             document.getElementById('user-name').textContent = currentDisplayName;
 
@@ -113,6 +120,7 @@ document.getElementById('modal-save-btn').addEventListener('click', async () => 
         streakCount: userProfile ? userProfile.streakCount : 0,
         lastGoalMetDate: userProfile ? userProfile.lastGoalMetDate : "",
         targetExam: modalExam.value
+        // NOT: Rol verisini bilerek buraya koymuyoruz ki kötü niyetli biri kendini admin yapamasın.
     };
 
     await fetch(backendUsersUrl, {
@@ -423,11 +431,11 @@ window.checkForPokes = async function() {
 
 setInterval(window.checkForPokes, 10000);
 
-
 window.activeRoomId = null;
 window.activeRoomName = "";
 let privateRoomInterval = null;
 
+// --- YENİ EKLENEN ADMIN KONTROLLÜ LOBİ ---
 window.loadLobbyRooms = async function() {
     try {
         const response = await fetch("https://onstudy-api.onrender.com/api/rooms");
@@ -441,8 +449,11 @@ window.loadLobbyRooms = async function() {
         }
 
         rooms.forEach(r => {
+            // Lobi ekranında odayı çizerken kullanıcının Admin olup olmadığını kontrol ediyoruz
+            const isAdmin = userProfile && userProfile.role === "admin";
+            
             grid.innerHTML += `
-                <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 20px; border-radius: 12px; transition: 0.2s; cursor: pointer;" 
+                <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 20px; border-radius: 12px; transition: 0.2s; cursor: pointer; position: relative;" 
                      onmouseover="this.style.borderColor='var(--primary-purple)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.05)'"
                      onclick="attemptJoinRoom('${r.roomId}', '${r.name}', ${r.isLocked})">
                     
@@ -456,6 +467,13 @@ window.loadLobbyRooms = async function() {
                         <span style="font-size: 0.85rem; color: var(--accent-orange); background: rgba(249,115,22,0.1); padding: 4px 8px; border-radius: 6px; font-weight: bold;">Kişi: ${r.userCount}</span>
                         <span style="font-size: 0.85rem; color: var(--primary-purple); font-weight: bold;">Katıl ➜</span>
                     </div>
+                    
+                    ${isAdmin ? `
+                    <button onclick="event.stopPropagation(); destroyRoomByAdmin('${r.roomId}', '${r.name}')" 
+                            style="position: absolute; bottom: -15px; right: 10px; background: #EF4444; color: white; border: none; padding: 5px 10px; border-radius: 5px; font-size: 0.8rem; cursor: pointer; font-weight: bold; box-shadow: 0 2px 5px rgba(239,68,68,0.5);">
+                        🔥 İmha Et
+                    </button>
+                    ` : ''}
                 </div>
             `;
         });
@@ -611,14 +629,12 @@ async function loadAverageStat(exam) {
             
             const banner = document.getElementById('average-stat-banner');
             if (banner) {
-                banner.innerHTML = `💡 <b>İlham Verici Bir Bilgi:</b> <b>${exam}</b> hedefine koşan topluluğumuz, kişi başı ortalama <b>${timeStr}</b> odaklandı. Sen de bu ekibin harika bir parçasısın!`;
+                banner.innerHTML = `<b>İlham Verici Bir Bilgi:</b> <b>${exam}</b> hedefine koşan topluluğumuz, kişi başı ortalama <b>${timeStr}</b> odaklandı. Sen de bu ekibin harika bir parçasısın!`;
                 banner.style.display = 'block';
             }
         }
     } catch(err) { console.error("Ortalama istatistik çekilemedi", err); }
 }
-
-// --- YENİ EKLENEN KISIM: KALP ATIŞI VE OTOMATİK TEMİZLİK TETİKLEYİCİSİ ---
 
 // 1. Her 2 dakikada bir "Ben buradayım" (Heartbeat) sinyali gönderir
 setInterval(async () => {
@@ -631,7 +647,7 @@ setInterval(async () => {
             });
         } catch(err) { console.error("Heartbeat gönderilemedi:", err); }
     }
-}, 120000); // 120,000 milisaniye = 2 dakika
+}, 120000); 
 
 // 2. Sayfa her yüklendiğinde genel bir zombi temizliği (Cleanup) tetikler
 window.addEventListener('load', () => {
@@ -639,6 +655,23 @@ window.addEventListener('load', () => {
         fetch("https://onstudy-api.onrender.com/api/private/cleanup", { method: "POST" });
     } catch(err) { console.error("Cleanup tetikleme hatası:", err); }
 });
-// --------------------------------------------------------------------------
+
+// --- YENİ: ADMIN İÇİN ZORLA ODA İMHA ETME FONKSİYONU ---
+window.destroyRoomByAdmin = async function(roomId, roomName) {
+    if(!confirm(`DİKKAT! "${roomName}" adlı odayı ve içindeki mesajları kalıcı olarak SİLMEK istediğine emin misin?`)) return;
+    
+    try {
+        const response = await fetch(`https://onstudy-api.onrender.com/api/admin/rooms/${roomId}/${currentUserUid}`, { 
+            method: 'DELETE' 
+        });
+        
+        if(response.ok) {
+            alert(" Oda ve içindeki tüm kalıntılar başarıyla imha edildi!");
+            loadLobbyRooms(); // Lobi listesini yenile
+        } else {
+            alert("Yetkisiz işlem! Bu odayı silmek için Admin olmalısın.");
+        }
+    } catch(err) { console.error("Silme hatası:", err); }
+};
 
 window.loadDashboardData = initUserAndLoadData;
