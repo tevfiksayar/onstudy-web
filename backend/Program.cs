@@ -11,11 +11,27 @@ builder.Services.AddCors(options => {
 var app = builder.Build();
 app.UseCors("AllowAll");
 
-string filepath = "firebase-key.json";
-Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", filepath);
+// --- YENİ AKILLI VERİTABANI BAĞLANTISI ---
 string projectId = "onstudy-1a735"; 
-FirestoreDb db = FirestoreDb.Create(projectId);
+FirestoreDb db;
 
+string firebaseJson = Environment.GetEnvironmentVariable("FIREBASE_JSON");
+
+if (!string.IsNullOrEmpty(firebaseJson)) {
+    // SUNUCU (CANLI) MODU: Şifreyi çevre değişkeninden okur.
+    db = new FirestoreDbBuilder {
+        ProjectId = projectId,
+        JsonCredentials = firebaseJson
+    }.Build();
+} else {
+    // LOKAL (BİLGİSAYAR) MODU: Kendi bilgisayarındaki json dosyasını kullanır.
+    string filepath = "firebase-key.json";
+    Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", filepath);
+    db = FirestoreDb.Create(projectId);
+}
+// ----------------------------------------
+
+// ... (Buradan sonrası kodundaki // 1. SESSIONS ve diğer app.MapGet kısımları aynen devam ediyor) ...
 // 1. SESSIONS 
 app.MapPost("/api/sessions", async (StudySession session) => {
     Dictionary<string, object> data = new() {
