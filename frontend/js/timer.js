@@ -55,7 +55,7 @@ function resetTimerUI() {
 startBtn.addEventListener('click', () => {
     if (!subjectInput.value.trim()) {
         if(window.showCustomDialog) {
-            showCustomDialog("Ders Adı Eksik", "Lütfen başlamadan önce hangi derse çalıştığını yaz.", "Tamam", "var(--primary-purple)", () => subjectInput.focus());
+           showCustomDialog("Ders Adı Eksik", "Lütfen başlamadan önce hangi derse çalıştığını yaz.", "✏️", "Tamam", "var(--primary-purple)", () => subjectInput.focus());
         }
         return;
     }
