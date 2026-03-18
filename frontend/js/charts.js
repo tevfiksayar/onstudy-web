@@ -28,7 +28,6 @@ async function initUserAndLoadData() {
         } else {
             userProfile = await profileResponse.json();
             
-            // YENİ: Eğer giren kişi Admin ise özel butonu göster
             if (userProfile.role === "admin") {
                 const adminBtn = document.getElementById('admin-panel-btn');
                 if(adminBtn) adminBtn.style.display = "inline-block";
@@ -120,7 +119,6 @@ document.getElementById('modal-save-btn').addEventListener('click', async () => 
         streakCount: userProfile ? userProfile.streakCount : 0,
         lastGoalMetDate: userProfile ? userProfile.lastGoalMetDate : "",
         targetExam: modalExam.value
-        // NOT: Rol verisini bilerek buraya koymuyoruz ki kötü niyetli biri kendini admin yapamasın.
     };
 
     await fetch(backendUsersUrl, {
@@ -333,13 +331,56 @@ function updateChart(sessions) {
     gradient.addColorStop(0, 'rgba(249, 115, 22, 0.8)'); 
     gradient.addColorStop(1, 'rgba(124, 58, 237, 0.4)'); 
 
+    // YENİ: DİNAMİK ZAMAN FORMATLAMA FONKSİYONU
+    const formatTime = (totalSecs) => {
+        if (totalSecs >= 3600) {
+            let h = Math.floor(totalSecs / 3600);
+            let m = Math.floor((totalSecs % 3600) / 60);
+            return m > 0 ? `${h} saat ${m} dk` : `${h} saat`;
+        } else if (totalSecs >= 60) {
+            let m = Math.floor(totalSecs / 60);
+            let s = totalSecs % 60;
+            return s > 0 ? `${m} dk ${s} sn` : `${m} dk`;
+        } else {
+            return `${totalSecs} sn`;
+        }
+    };
+
     studyChartInstance = new Chart(ctx, {
         type: 'bar',
-        data: { labels: labels, datasets: [{ label: 'Çalışma Süresi (Saniye)', data: dataInSeconds, backgroundColor: gradient, borderRadius: 8, barPercentage: 0.6 }] },
+        data: { labels: labels, datasets: [{ label: 'Çalışma Süresi', data: dataInSeconds, backgroundColor: gradient, borderRadius: 8, barPercentage: 0.6 }] },
         options: {
             responsive: true,
-            plugins: { legend: { display: false }, tooltip: { backgroundColor: 'rgba(30, 31, 46, 0.9)', titleColor: '#F8FAFC', bodyColor: '#F8FAFC', padding: 12, callbacks: { label: function(c) { return c.raw + ' Saniye'; } } } },
-            scales: { y: { beginAtZero: true, grid: { borderDash: [5, 5], color: 'rgba(255, 255, 255, 0.1)' }, ticks: { color: 'rgba(255, 255, 255, 0.7)' }, border: { display: false } }, x: { grid: { display: false }, ticks: { color: 'rgba(255, 255, 255, 0.7)' }, border: { display: false } } }
+            plugins: { 
+                legend: { display: false }, 
+                tooltip: { 
+                    backgroundColor: 'rgba(30, 31, 46, 0.9)', 
+                    titleColor: '#F8FAFC', 
+                    bodyColor: '#F8FAFC', 
+                    padding: 12, 
+                    callbacks: { 
+                        // Tooltipte dinamik zaman gösterimi
+                        label: function(c) { 
+                            return formatTime(c.raw); 
+                        } 
+                    } 
+                } 
+            },
+            scales: { 
+                y: { 
+                    beginAtZero: true, 
+                    grid: { borderDash: [5, 5], color: 'rgba(255, 255, 255, 0.1)' }, 
+                    ticks: { 
+                        color: 'rgba(255, 255, 255, 0.7)',
+                        // Y Ekseninde dinamik zaman gösterimi
+                        callback: function(value) {
+                            return formatTime(value);
+                        }
+                    }, 
+                    border: { display: false } 
+                }, 
+                x: { grid: { display: false }, ticks: { color: 'rgba(255, 255, 255, 0.7)' }, border: { display: false } } 
+            }
         }
     });
 }
@@ -435,7 +476,6 @@ window.activeRoomId = null;
 window.activeRoomName = "";
 let privateRoomInterval = null;
 
-// --- YENİ EKLENEN ADMIN KONTROLLÜ LOBİ ---
 window.loadLobbyRooms = async function() {
     try {
         const response = await fetch("https://onstudy-api.onrender.com/api/rooms");
@@ -449,7 +489,6 @@ window.loadLobbyRooms = async function() {
         }
 
         rooms.forEach(r => {
-            // Lobi ekranında odayı çizerken kullanıcının Admin olup olmadığını kontrol ediyoruz
             const isAdmin = userProfile && userProfile.role === "admin";
             
             grid.innerHTML += `
@@ -629,14 +668,13 @@ async function loadAverageStat(exam) {
             
             const banner = document.getElementById('average-stat-banner');
             if (banner) {
-                banner.innerHTML = `<b>İlham Verici Bir Bilgi:</b> <b>${exam}</b> hedefine koşan topluluğumuz, kişi başı ortalama <b>${timeStr}</b> odaklandı. Sen de bu ekibin harika bir parçasısın!`;
+                banner.innerHTML = `💡 <b>İlham Verici Bir Bilgi:</b> <b>${exam}</b> hedefine koşan topluluğumuz, kişi başı ortalama <b>${timeStr}</b> odaklandı. Sen de bu ekibin harika bir parçasısın!`;
                 banner.style.display = 'block';
             }
         }
     } catch(err) { console.error("Ortalama istatistik çekilemedi", err); }
 }
 
-// 1. Her 2 dakikada bir "Ben buradayım" (Heartbeat) sinyali gönderir
 setInterval(async () => {
     if (window.activeRoomId && currentUserUid) {
         try {
@@ -649,14 +687,12 @@ setInterval(async () => {
     }
 }, 120000); 
 
-// 2. Sayfa her yüklendiğinde genel bir zombi temizliği (Cleanup) tetikler
 window.addEventListener('load', () => {
     try {
         fetch("https://onstudy-api.onrender.com/api/private/cleanup", { method: "POST" });
     } catch(err) { console.error("Cleanup tetikleme hatası:", err); }
 });
 
-// --- YENİ: ADMIN İÇİN ZORLA ODA İMHA ETME FONKSİYONU ---
 window.destroyRoomByAdmin = async function(roomId, roomName) {
     if(!confirm(`DİKKAT! "${roomName}" adlı odayı ve içindeki mesajları kalıcı olarak SİLMEK istediğine emin misin?`)) return;
     
@@ -666,8 +702,8 @@ window.destroyRoomByAdmin = async function(roomId, roomName) {
         });
         
         if(response.ok) {
-            alert(" Oda ve içindeki tüm kalıntılar başarıyla imha edildi!");
-            loadLobbyRooms(); // Lobi listesini yenile
+            alert("🔥 Oda ve içindeki tüm kalıntılar başarıyla imha edildi!");
+            loadLobbyRooms(); 
         } else {
             alert("Yetkisiz işlem! Bu odayı silmek için Admin olmalısın.");
         }
@@ -675,3 +711,15 @@ window.destroyRoomByAdmin = async function(roomId, roomName) {
 };
 
 window.loadDashboardData = initUserAndLoadData;
+
+// --- YENİ: TEPEDEKİ ADMIN ROZETİ İÇİN BİLGİ BUTONU ---
+const topAdminBtn = document.getElementById('admin-panel-btn');
+if (topAdminBtn) {
+    topAdminBtn.addEventListener('click', () => {
+        if(window.showCustomDialog) {
+            showCustomDialog("Admin Yetkisi Aktif", "Sistem yöneticisi olarak tanındınız. Lobi sekmesine giderek asılı kalan veya sorunlu odaları 'İmha Et' butonu ile kalıcı olarak silebilirsiniz.", "🛡️", "Anladım", "var(--primary-purple)", null);
+        } else {
+            alert("Admin Yetkisi Aktif!\nLobi sekmesine giderek odaları silebilirsiniz.");
+        }
+    });
+}

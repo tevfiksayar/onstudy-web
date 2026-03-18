@@ -4,6 +4,9 @@ let isRunning = false;
 let isPomodoro = false;
 const POMODORO_SECONDS = 25 * 60; 
 
+let startTime = 0;
+let elapsedBeforePause = 0;
+
 const timeDisplay = document.getElementById('time-display');
 const startBtn = document.getElementById('start-btn');
 const pauseBtn = document.getElementById('pause-btn');
@@ -44,6 +47,7 @@ function resetTimerUI() {
     clearInterval(timerInterval);
     isRunning = false;
     secondsElapsed = 0;
+    elapsedBeforePause = 0; // YENİ: Kumbarayı sıfırla
     startBtn.textContent = "Çalışmaya Başla"; 
     updateDisplay();
 }
@@ -51,7 +55,7 @@ function resetTimerUI() {
 startBtn.addEventListener('click', () => {
     if (!subjectInput.value.trim()) {
         if(window.showCustomDialog) {
-            showCustomDialog("Ders Adı Eksik", "Lütfen başlamadan önce hangi derse çalıştığını yaz.", "✏️", "Tamam", "var(--primary-purple)", () => subjectInput.focus());
+            showCustomDialog("Ders Adı Eksik", "Lütfen başlamadan önce hangi derse çalıştığını yaz.", "Tamam", "var(--primary-purple)", () => subjectInput.focus());
         }
         return;
     }
@@ -60,11 +64,15 @@ startBtn.addEventListener('click', () => {
     isRunning = true;
     startBtn.textContent = "Devam Ediyor..."; 
     
-    // charts.js içindeki kütüphaneye giriş fonksiyonunu çağır
     if(window.joinLiveRoom) window.joinLiveRoom(subjectInput.value.trim());
     
+    startTime = Date.now(); // YENİ: Başlangıç anının milisaniyesini kaydet
+    
     timerInterval = setInterval(() => {
-        secondsElapsed++;
+        // YENİ: Sadece 1 ekleme, aradaki gerçek zaman farkını hesapla!
+        let currentElapsed = Math.floor((Date.now() - startTime) / 1000);
+        secondsElapsed = elapsedBeforePause + currentElapsed;
+        
         updateDisplay();
         
         if (isPomodoro && secondsElapsed >= POMODORO_SECONDS) {
@@ -74,7 +82,7 @@ startBtn.addEventListener('click', () => {
             if(window.leaveLiveRoom) window.leaveLiveRoom(); 
 
             if(window.showCustomDialog) {
-                showCustomDialog("Pomodoro Bitti!", "Harika odaklandın! 25 dakikalık seansın bitti. Kaydedip mola verebilirsin.", "🍅", "Kaydet", "var(--accent-orange)", () => saveSession());
+                showCustomDialog("Pomodoro Bitti!", "Harika odaklandın! 25 dakikalık seansın bitti. Kaydedip mola verebilirsin.", "Kaydet", "var(--accent-orange)", () => saveSession());
             } else {
                 saveSession();
             }
@@ -86,6 +94,10 @@ pauseBtn.addEventListener('click', () => {
     if (!isRunning) return;
     clearInterval(timerInterval);
     isRunning = false;
+    
+    // YENİ: Duraklatıldığında o ana kadar geçen süreyi kumbaraya ekle
+    elapsedBeforePause += Math.floor((Date.now() - startTime) / 1000);
+    
     startBtn.textContent = "Devam Et"; 
     
     if(window.leaveLiveRoom) window.leaveLiveRoom();
@@ -121,7 +133,7 @@ async function saveSession() {
         resetTimerUI();
         
         if(window.showCustomDialog) {
-            showCustomDialog("Başarılı!", "Çalışma kaydın eklendi ve istatistiklerine yansıdı.", "✅", "Süper", "var(--primary-purple)", () => location.reload());
+            showCustomDialog("Başarılı!", "Çalışma kaydın eklendi ve istatistiklerine yansıdı.", "Süper", "var(--primary-purple)", () => location.reload());
         } else {
             location.reload();
         }
@@ -130,21 +142,19 @@ async function saveSession() {
     }
 }
 
-// Sekme kapandığında çıkış yap
 window.addEventListener('beforeunload', () => {
     if(window.leaveLiveRoom) window.leaveLiveRoom();
 });
-// --- YENİ: DAHİLİ ODAK SESLERİ YÖNETİMİ ---
+
 const sounds = {
-    rain: new Audio("https://cdn.pixabay.com/download/audio/2021/08/04/audio_0625c1539c.mp3"), // Ücretsiz yağmur sesi
-    cafe: new Audio("https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3"), // Ücretsiz kafe sesi
-    fire: new Audio("https://cdn.pixabay.com/download/audio/2022/02/22/audio_fc1b09cbda.mp3")  // Ücretsiz şömine sesi
+    rain: new Audio("https://cdn.pixabay.com/download/audio/2021/08/04/audio_0625c1539c.mp3"),
+    cafe: new Audio("https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3"),
+    fire: new Audio("https://cdn.pixabay.com/download/audio/2022/02/22/audio_fc1b09cbda.mp3")
 };
 
-// Sesleri sürekli tekrar edecek (loop) şekilde ayarla
 Object.values(sounds).forEach(audio => {
     audio.loop = true;
-    audio.volume = 0.5; // Ses seviyesi %50
+    audio.volume = 0.5;
 });
 
 let currentSound = null;
@@ -153,7 +163,6 @@ window.toggleSound = function(soundName) {
     const btn = document.getElementById(`btn-sound-${soundName}`);
     const audio = sounds[soundName];
 
-    // Eğer tıklanan ses zaten çalıyorsa, durdur
     if (currentSound === soundName) {
         audio.pause();
         currentSound = null;
@@ -162,20 +171,16 @@ window.toggleSound = function(soundName) {
         return;
     }
 
-    // Başka bir ses çalıyorsa önce onu sustur ve butonları sıfırla
     if (currentSound) {
         sounds[currentSound].pause();
         document.getElementById(`btn-sound-${currentSound}`).style.background = "rgba(255,255,255,0.03)";
         document.getElementById(`btn-sound-${currentSound}`).style.borderColor = "rgba(255,255,255,0.1)";
     }
 
-    // Yeni sesi başlat ve butonunu mor renkle (aktif) vurgula
     audio.play().catch(e => console.log("Tarayıcı otomatik ses çalmayı engelledi:", e));
     currentSound = soundName;
-    btn.style.background = "rgba(124, 58, 237, 0.2)"; // Mor arkaplan
-    btn.style.borderColor = "var(--primary-purple)"; // Mor kenarlık
+    btn.style.background = "rgba(124, 58, 237, 0.2)";
+    btn.style.borderColor = "var(--primary-purple)";
 };
 
-// Sayfa kapanırken veya mola verildiğinde sesi de durdurmak istersek:
-// (İsteğe bağlı: stopBtn.addEventListener içine `if(currentSound) sounds[currentSound].pause();` ekleyebilirsin)
 updateDisplay();
