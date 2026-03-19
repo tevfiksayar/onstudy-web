@@ -318,12 +318,47 @@ function updateRecentSessions(sessions) {
     });
 }
 
+// --- YENİ: GÜNLÜK BAZLI (SON 7 GÜN) GRAFİK ---
 function updateChart(sessions) {
-    const subjectTotals = {};
-    sessions.forEach(s => { subjectTotals[s.subject] = (subjectTotals[s.subject] || 0) + s.durationInSeconds; });
+    const labels = [];
+    const dailyTotals = {};
+    const today = new Date();
+    
+    // 1. Son 7 günün etiketlerini (X ekseni) oluştur
+    for (let i = 6; i >= 0; i--) {
+        let d = new Date();
+        d.setDate(today.getDate() - i);
+        
+        let dateLabel = d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' }); // Örn: "15 Mar"
+        if (i === 0) dateLabel = "Bugün"; 
+        else if (i === 1) dateLabel = "Dün"; 
+        
+        labels.push(dateLabel);
+        dailyTotals[dateLabel] = 0; // Başlangıçta o gün 0 saniye
+    }
 
-    const labels = Object.keys(subjectTotals);
-    const dataInSeconds = Object.values(subjectTotals); 
+    // 2. Gelen verileri (çalışmaları) ilgili günlerin üzerine ekle
+    sessions.forEach(s => {
+        let sDate = new Date(s.date);
+        let sLabel = sDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+        
+        let todayLabel = new Date().toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+        let yesterdayDate = new Date();
+        yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+        let yesterdayLabel = yesterdayDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+
+        if (sLabel === todayLabel) sLabel = "Bugün";
+        else if (sLabel === yesterdayLabel) sLabel = "Dün";
+
+        // Eğer çalışma son 7 gün içindeyse o günün kumbarasına süreyi ekle
+        if (dailyTotals[sLabel] !== undefined) {
+            dailyTotals[sLabel] += s.durationInSeconds;
+        }
+    });
+
+    const dataInSeconds = labels.map(label => dailyTotals[label]);
+
+    // 3. Grafiği Çiz (Chart.js)
     const ctx = document.getElementById('studyChart').getContext('2d');
     if (studyChartInstance) studyChartInstance.destroy();
 
@@ -331,7 +366,7 @@ function updateChart(sessions) {
     gradient.addColorStop(0, 'rgba(249, 115, 22, 0.8)'); 
     gradient.addColorStop(1, 'rgba(124, 58, 237, 0.4)'); 
 
-    // YENİ: DİNAMİK ZAMAN FORMATLAMA FONKSİYONU
+    // O harika dinamik zaman çevirici fonksiyonumuz duruyor!
     const formatTime = (totalSecs) => {
         if (totalSecs >= 3600) {
             let h = Math.floor(totalSecs / 3600);
@@ -348,7 +383,16 @@ function updateChart(sessions) {
 
     studyChartInstance = new Chart(ctx, {
         type: 'bar',
-        data: { labels: labels, datasets: [{ label: 'Çalışma Süresi', data: dataInSeconds, backgroundColor: gradient, borderRadius: 8, barPercentage: 0.6 }] },
+        data: { 
+            labels: labels, 
+            datasets: [{ 
+                label: 'Günlük Toplam', 
+                data: dataInSeconds, 
+                backgroundColor: gradient, 
+                borderRadius: 8, 
+                barPercentage: 0.6 
+            }] 
+        },
         options: {
             responsive: true,
             plugins: { 
@@ -358,12 +402,7 @@ function updateChart(sessions) {
                     titleColor: '#F8FAFC', 
                     bodyColor: '#F8FAFC', 
                     padding: 12, 
-                    callbacks: { 
-                        // Tooltipte dinamik zaman gösterimi
-                        label: function(c) { 
-                            return formatTime(c.raw); 
-                        } 
-                    } 
+                    callbacks: { label: function(c) { return formatTime(c.raw); } } 
                 } 
             },
             scales: { 
@@ -372,14 +411,15 @@ function updateChart(sessions) {
                     grid: { borderDash: [5, 5], color: 'rgba(255, 255, 255, 0.1)' }, 
                     ticks: { 
                         color: 'rgba(255, 255, 255, 0.7)',
-                        // Y Ekseninde dinamik zaman gösterimi
-                        callback: function(value) {
-                            return formatTime(value);
-                        }
+                        callback: function(value) { return formatTime(value); }
                     }, 
                     border: { display: false } 
                 }, 
-                x: { grid: { display: false }, ticks: { color: 'rgba(255, 255, 255, 0.7)' }, border: { display: false } } 
+                x: { 
+                    grid: { display: false }, 
+                    ticks: { color: 'rgba(255, 255, 255, 0.7)', font: { weight: 'bold' } }, 
+                    border: { display: false } 
+                } 
             }
         }
     });
