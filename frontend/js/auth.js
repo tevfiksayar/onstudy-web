@@ -83,6 +83,8 @@ authForm.addEventListener('submit', (e) => {
 auth.onAuthStateChanged((user) => {
     if (user) {
         // Kullanıcı zaten giriş yapmış
-        window.location.href = "dashboard.html";
+        // EĞER KODUN BÖYLEYSE (YANLIŞ UX)
+    // DOĞRU UX (PROFESYONEL KULLANIM)
+    window.location.replace("dashboard.html");
     }
 });
