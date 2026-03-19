@@ -374,9 +374,11 @@ async function deleteTodo(id) {
 }
 
 function renderCalendarStrip() {
-    const strip = document.getElementById('calendar-strip');
-    if(!strip) return;
-    strip.innerHTML = '';
+    // YENİ: Artık iki takvimimiz var, ikisini de buluyoruz
+    const strips = [
+        document.getElementById('calendar-strip'), 
+        document.getElementById('stats-calendar-strip')
+    ];
     
     const today = new Date();
     const currentDay = today.getDay(); 
@@ -386,32 +388,37 @@ function renderCalendarStrip() {
 
     const dayNames = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
 
-    for (let i = 0; i < 7; i++) {
-        const date = new Date(startOfWeek);
-        date.setDate(startOfWeek.getDate() + i);
+    // Her iki takvim şeridinin içine de günleri çiziyoruz
+    strips.forEach(strip => {
+        if(!strip) return; // Eğer o sekme yoksa atla
+        strip.innerHTML = '';
         
-        const iterDateStr = date.toLocaleDateString('en-CA');
-        const isSelected = (iterDateStr === selectedDateStr);
-        
-        const dayDiv = document.createElement('div');
-        dayDiv.className = `cal-day ${isSelected ? 'active' : ''}`;
-        dayDiv.style.cursor = 'pointer'; 
-        
-        dayDiv.onclick = () => {
-            selectedDateStr = iterDateStr; 
-            renderCalendarStrip();         
-            loadTodos();                   
-            if(window.cachedSessions) updateCharts(); // YENİ: Takvime basınca üstteki grafiği de güncelle!
-        };
-        
-        dayDiv.innerHTML = `
-            <span class="cal-day-name">${dayNames[i]}</span>
-            <span class="cal-day-num">${date.getDate()}</span>
-        `;
-        strip.appendChild(dayDiv);
-    }
+        for (let i = 0; i < 7; i++) {
+            const date = new Date(startOfWeek);
+            date.setDate(startOfWeek.getDate() + i);
+            
+            const iterDateStr = date.toLocaleDateString('en-CA');
+            const isSelected = (iterDateStr === selectedDateStr);
+            
+            const dayDiv = document.createElement('div');
+            dayDiv.className = `cal-day ${isSelected ? 'active' : ''}`;
+            dayDiv.style.cursor = 'pointer'; 
+            
+            dayDiv.onclick = () => {
+                selectedDateStr = iterDateStr; 
+                renderCalendarStrip(); // İki takvimin de görünümünü yenile
+                loadTodos();           // Görevleri yenile
+                if(window.cachedSessions) updateCharts(); // Grafikleri yenile!
+            };
+            
+            dayDiv.innerHTML = `
+                <span class="cal-day-name">${dayNames[i]}</span>
+                <span class="cal-day-num">${date.getDate()}</span>
+            `;
+            strip.appendChild(dayDiv);
+        }
+    });
 }
-
 async function checkStreak(sessions) {
     if (!userProfile) return;
     const todayStr = new Date().toLocaleDateString();
