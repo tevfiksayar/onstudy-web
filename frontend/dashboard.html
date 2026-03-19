@@ -133,7 +133,7 @@
             </div>
             
             <div id="average-stat-banner" style="max-width: 600px; margin: 30px auto 0 auto; background: rgba(124, 58, 237, 0.05); border: 1px solid rgba(124, 58, 237, 0.2); padding: 15px 20px; border-radius: 12px; text-align: center; color: var(--text-light); font-size: 0.9rem; display: none;">
-                </div>
+            </div>
             
         </div>
 
@@ -195,8 +195,24 @@
 
         <div id="tab-stats" class="tab-content">
             <div class="stats-grid">
-                <div class="card"><h2>Ders Dağılımı</h2><canvas id="studyChart"></canvas></div>
-                <div class="card"><h2>Son Çalışmalar</h2><div id="session-list"></div></div>
+                
+                <div class="card" style="display: flex; flex-direction: column; gap: 30px;">
+                    <div>
+                        <h3 style="margin-bottom: 10px; font-size: 1rem; color: var(--text-muted);">Secili Gunun Dersleri</h3>
+                        <canvas id="dailySubjectChart"></canvas>
+                    </div>
+                
+                    <div>
+                        <h3 style="margin-bottom: 10px; font-size: 1rem; color: var(--text-muted);">Son 7 Gunluk Aktivite</h3>
+                        <canvas id="weeklyTotalChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>Son Calismalar</h2>
+                    <div id="session-list"></div>
+                </div>
+
             </div>
         </div>
 

@@ -2,10 +2,15 @@ const backendBaseUrl = "https://onstudy-api.onrender.com/api/sessions/";
 const backendUsersUrl = "https://onstudy-api.onrender.com/api/users/";
 const backendLeaderboardUrl = "https://onstudy-api.onrender.com/api/leaderboard/";
 const backendTodoUrl = "https://onstudy-api.onrender.com/api/todos/";
-let studyChartInstance = null; 
+
+// İki ayrı grafik için iki ayrı referans
+let dailyChartInstance = null; 
+let weeklyChartInstance = null; 
+
 let currentUserUid = null;
 let currentDisplayName = null;
 let userProfile = null;
+window.cachedSessions = []; // Takvimden gün değişince veriyi tekrar çekmemek için
 
 let selectedDateStr = new Date().toLocaleDateString('en-CA');
 
@@ -38,9 +43,10 @@ async function initUserAndLoadData() {
 
             const sessionsResponse = await fetch(backendBaseUrl + currentUserUid);
             const sessionsData = await sessionsResponse.json();
+            window.cachedSessions = sessionsData; // Verileri globalde tut
 
             updateRecentSessions(sessionsData);
-            updateChart(sessionsData);
+            updateCharts(); // YENİ: İki grafiği birden çizen fonksiyon
             checkStreak(sessionsData);
             
             loadLeaderboard(userProfile.targetExam || "Genel");
@@ -56,6 +62,152 @@ async function initUserAndLoadData() {
         console.error("Veriler yüklenirken hata:", error);
     }
 }
+
+// Ortak Dinamik Zaman Formatlayıcı
+const formatTime = (totalSecs) => {
+    if (totalSecs >= 3600) {
+        let h = Math.floor(totalSecs / 3600);
+        let m = Math.floor((totalSecs % 3600) / 60);
+        return m > 0 ? `${h} saat ${m} dk` : `${h} saat`;
+    } else if (totalSecs >= 60) {
+        let m = Math.floor(totalSecs / 60);
+        let s = totalSecs % 60;
+        return s > 0 ? `${m} dk ${s} sn` : `${m} dk`;
+    } else {
+        return `${totalSecs} sn`;
+    }
+};
+
+// --- YENİ: İKİ GRAFİĞİ BİRDEN YÖNETEN FONKSİYON ---
+function updateCharts() {
+    renderDailySubjectChart();
+    renderWeeklyTotalChart();
+}
+
+// 1. ÜST GRAFİK: Sadece Seçili Gündeki Dersler
+function renderDailySubjectChart() {
+    const ctx = document.getElementById('dailySubjectChart');
+    if(!ctx) return;
+
+    // Sadece seçili güne ait çalışmaları filtrele
+    const dailySessions = window.cachedSessions.filter(s => {
+        return new Date(s.date).toLocaleDateString('en-CA') === selectedDateStr;
+    });
+
+    const subjectTotals = {};
+    dailySessions.forEach(s => { 
+        subjectTotals[s.subject] = (subjectTotals[s.subject] || 0) + s.durationInSeconds; 
+    });
+
+    const labels = Object.keys(subjectTotals);
+    const dataInSeconds = Object.values(subjectTotals); 
+
+    if (dailyChartInstance) dailyChartInstance.destroy();
+
+    const gradient = ctx.getContext('2d').createLinearGradient(0, 0, 0, 400);
+    gradient.addColorStop(0, 'rgba(124, 58, 237, 0.8)'); // Mor ağırlıklı
+    gradient.addColorStop(1, 'rgba(79, 70, 229, 0.4)'); 
+
+    dailyChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: { 
+            labels: labels.length > 0 ? labels : ['Kayıt Yok'], 
+            datasets: [{ 
+                label: 'Ders Süresi', 
+                data: dataInSeconds.length > 0 ? dataInSeconds : [0], 
+                backgroundColor: gradient, 
+                borderRadius: 8, 
+                barPercentage: 0.5 
+            }] 
+        },
+        options: {
+            indexAxis: 'y', // Yatay bar daha şık durur ders isimleri için
+            responsive: true,
+            plugins: { 
+                legend: { display: false }, 
+                tooltip: { 
+                    backgroundColor: 'rgba(30, 31, 46, 0.9)', titleColor: '#F8FAFC', bodyColor: '#F8FAFC', padding: 12, 
+                    callbacks: { label: function(c) { return formatTime(c.raw); } } 
+                } 
+            },
+            scales: { 
+                x: { 
+                    beginAtZero: true, grid: { borderDash: [5, 5], color: 'rgba(255, 255, 255, 0.1)' }, 
+                    ticks: { color: 'rgba(255, 255, 255, 0.7)', callback: function(value) { return formatTime(value); } }, border: { display: false } 
+                }, 
+                y: { grid: { display: false }, ticks: { color: 'rgba(255, 255, 255, 0.7)', font: { weight: 'bold' } }, border: { display: false } } 
+            }
+        }
+    });
+}
+
+// 2. ALT GRAFİK: Son 7 Günün Toplamları
+function renderWeeklyTotalChart() {
+    const ctx = document.getElementById('weeklyTotalChart');
+    if(!ctx) return;
+
+    const labels = [];
+    const dailyTotals = {};
+    const today = new Date();
+    
+    for (let i = 6; i >= 0; i--) {
+        let d = new Date();
+        d.setDate(today.getDate() - i);
+        let dateLabel = d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+        if (i === 0) dateLabel = "Bugün"; else if (i === 1) dateLabel = "Dün"; 
+        labels.push(dateLabel);
+        dailyTotals[dateLabel] = 0; 
+    }
+
+    window.cachedSessions.forEach(s => {
+        let sDate = new Date(s.date);
+        let sLabel = sDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+        let todayLabel = new Date().toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+        let yesterdayDate = new Date(); yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+        let yesterdayLabel = yesterdayDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+
+        if (sLabel === todayLabel) sLabel = "Bugün";
+        else if (sLabel === yesterdayLabel) sLabel = "Dün";
+
+        if (dailyTotals[sLabel] !== undefined) {
+            dailyTotals[sLabel] += s.durationInSeconds;
+        }
+    });
+
+    const dataInSeconds = labels.map(label => dailyTotals[label]);
+
+    if (weeklyChartInstance) weeklyChartInstance.destroy();
+
+    const gradient = ctx.getContext('2d').createLinearGradient(0, 0, 0, 400);
+    gradient.addColorStop(0, 'rgba(249, 115, 22, 0.8)'); // Turuncu ağırlıklı
+    gradient.addColorStop(1, 'rgba(124, 58, 237, 0.4)'); 
+
+    weeklyChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: { 
+            labels: labels, 
+            datasets: [{ label: 'Günlük Toplam', data: dataInSeconds, backgroundColor: gradient, borderRadius: 8, barPercentage: 0.6 }] 
+        },
+        options: {
+            responsive: true,
+            plugins: { 
+                legend: { display: false }, 
+                tooltip: { 
+                    backgroundColor: 'rgba(30, 31, 46, 0.9)', titleColor: '#F8FAFC', bodyColor: '#F8FAFC', padding: 12, 
+                    callbacks: { label: function(c) { return formatTime(c.raw); } } 
+                } 
+            },
+            scales: { 
+                y: { 
+                    beginAtZero: true, grid: { borderDash: [5, 5], color: 'rgba(255, 255, 255, 0.1)' }, 
+                    ticks: { color: 'rgba(255, 255, 255, 0.7)', callback: function(value) { return formatTime(value); } }, border: { display: false } 
+                }, 
+                x: { grid: { display: false }, ticks: { color: 'rgba(255, 255, 255, 0.7)', font: { weight: 'bold' } }, border: { display: false } } 
+            }
+        }
+    });
+}
+// -----------------------------------------------------------
 
 window.showCustomDialog = function(title, message, icon, confirmText, confirmColor, onConfirm) {
     const dialog = document.getElementById('custom-dialog');
@@ -249,6 +401,7 @@ function renderCalendarStrip() {
             selectedDateStr = iterDateStr; 
             renderCalendarStrip();         
             loadTodos();                   
+            if(window.cachedSessions) updateCharts(); // YENİ: Takvime basınca üstteki grafiği de güncelle!
         };
         
         dayDiv.innerHTML = `
@@ -315,113 +468,6 @@ function updateRecentSessions(sessions) {
         li.style.border = "1px solid rgba(255, 255, 255, 0.05)";
         li.style.borderLeft = "5px solid var(--primary-purple)"; 
         sessionList.appendChild(li);
-    });
-}
-
-// --- YENİ: GÜNLÜK BAZLI (SON 7 GÜN) GRAFİK ---
-function updateChart(sessions) {
-    const labels = [];
-    const dailyTotals = {};
-    const today = new Date();
-    
-    // 1. Son 7 günün etiketlerini (X ekseni) oluştur
-    for (let i = 6; i >= 0; i--) {
-        let d = new Date();
-        d.setDate(today.getDate() - i);
-        
-        let dateLabel = d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' }); // Örn: "15 Mar"
-        if (i === 0) dateLabel = "Bugün"; 
-        else if (i === 1) dateLabel = "Dün"; 
-        
-        labels.push(dateLabel);
-        dailyTotals[dateLabel] = 0; // Başlangıçta o gün 0 saniye
-    }
-
-    // 2. Gelen verileri (çalışmaları) ilgili günlerin üzerine ekle
-    sessions.forEach(s => {
-        let sDate = new Date(s.date);
-        let sLabel = sDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
-        
-        let todayLabel = new Date().toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
-        let yesterdayDate = new Date();
-        yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-        let yesterdayLabel = yesterdayDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
-
-        if (sLabel === todayLabel) sLabel = "Bugün";
-        else if (sLabel === yesterdayLabel) sLabel = "Dün";
-
-        // Eğer çalışma son 7 gün içindeyse o günün kumbarasına süreyi ekle
-        if (dailyTotals[sLabel] !== undefined) {
-            dailyTotals[sLabel] += s.durationInSeconds;
-        }
-    });
-
-    const dataInSeconds = labels.map(label => dailyTotals[label]);
-
-    // 3. Grafiği Çiz (Chart.js)
-    const ctx = document.getElementById('studyChart').getContext('2d');
-    if (studyChartInstance) studyChartInstance.destroy();
-
-    const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-    gradient.addColorStop(0, 'rgba(249, 115, 22, 0.8)'); 
-    gradient.addColorStop(1, 'rgba(124, 58, 237, 0.4)'); 
-
-    // O harika dinamik zaman çevirici fonksiyonumuz duruyor!
-    const formatTime = (totalSecs) => {
-        if (totalSecs >= 3600) {
-            let h = Math.floor(totalSecs / 3600);
-            let m = Math.floor((totalSecs % 3600) / 60);
-            return m > 0 ? `${h} saat ${m} dk` : `${h} saat`;
-        } else if (totalSecs >= 60) {
-            let m = Math.floor(totalSecs / 60);
-            let s = totalSecs % 60;
-            return s > 0 ? `${m} dk ${s} sn` : `${m} dk`;
-        } else {
-            return `${totalSecs} sn`;
-        }
-    };
-
-    studyChartInstance = new Chart(ctx, {
-        type: 'bar',
-        data: { 
-            labels: labels, 
-            datasets: [{ 
-                label: 'Günlük Toplam', 
-                data: dataInSeconds, 
-                backgroundColor: gradient, 
-                borderRadius: 8, 
-                barPercentage: 0.6 
-            }] 
-        },
-        options: {
-            responsive: true,
-            plugins: { 
-                legend: { display: false }, 
-                tooltip: { 
-                    backgroundColor: 'rgba(30, 31, 46, 0.9)', 
-                    titleColor: '#F8FAFC', 
-                    bodyColor: '#F8FAFC', 
-                    padding: 12, 
-                    callbacks: { label: function(c) { return formatTime(c.raw); } } 
-                } 
-            },
-            scales: { 
-                y: { 
-                    beginAtZero: true, 
-                    grid: { borderDash: [5, 5], color: 'rgba(255, 255, 255, 0.1)' }, 
-                    ticks: { 
-                        color: 'rgba(255, 255, 255, 0.7)',
-                        callback: function(value) { return formatTime(value); }
-                    }, 
-                    border: { display: false } 
-                }, 
-                x: { 
-                    grid: { display: false }, 
-                    ticks: { color: 'rgba(255, 255, 255, 0.7)', font: { weight: 'bold' } }, 
-                    border: { display: false } 
-                } 
-            }
-        }
     });
 }
 
@@ -752,7 +798,6 @@ window.destroyRoomByAdmin = async function(roomId, roomName) {
 
 window.loadDashboardData = initUserAndLoadData;
 
-// --- YENİ: TEPEDEKİ ADMIN ROZETİ İÇİN BİLGİ BUTONU ---
 const topAdminBtn = document.getElementById('admin-panel-btn');
 if (topAdminBtn) {
     topAdminBtn.addEventListener('click', () => {
