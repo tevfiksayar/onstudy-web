@@ -483,7 +483,6 @@ function updateRecentSessions(sessions) {
         li.innerHTML = `
             <div style="display: flex; align-items: center; gap: 15px; width: 100%;">
                 <div style="width: 42px; height: 42px; background: rgba(124, 58, 237, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; border: 1px solid rgba(124, 58, 237, 0.2);">
-                    📚
                 </div>
                 
                 <div style="flex: 1;">
