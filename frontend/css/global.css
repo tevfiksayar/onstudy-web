@@ -98,3 +98,19 @@ input:focus, select:focus {
     .cal-day-num { font-size: 1.1rem !important; }
     .modal-content { width: 95% !important; padding: 25px !important; }
 }
+/* --- ÖZEL KAYDIRMA ÇUBUĞU (Custom Scrollbar) --- */
+::-webkit-scrollbar {
+    width: 6px; /* Çubuğu incecik, zarif yapıyoruz */
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.02); 
+    border-radius: 10px;
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(124, 58, 237, 0.4); /* Mor rengimizin şeffaf hali */
+    border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(124, 58, 237, 0.8); 
+}

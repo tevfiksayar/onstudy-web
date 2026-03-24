@@ -442,38 +442,81 @@ window.deleteSession = async function(sessionId) {
     });
 };
 
+// --- YENİ VE MODERN: SON ÇALIŞMALAR LİSTESİ ---
 function updateRecentSessions(sessions) {
     const sessionList = document.getElementById('session-list');
     sessionList.innerHTML = ''; 
     sessionList.style.listStyleType = "none";
     sessionList.style.padding = "0";
-    if (sessions.length === 0) return;
+    
+    // 1. Kutuya sabit bir boy verip scroll (kaydırma) özelliği ekliyoruz
+    sessionList.style.maxHeight = "350px"; 
+    sessionList.style.overflowY = "auto";
+    sessionList.style.paddingRight = "10px"; // Scrollbar için sağdan nefes payı
 
-    sessions.forEach(session => {
+    if (sessions.length === 0) {
+        sessionList.innerHTML = `
+            <div style="text-align:center; padding: 30px 10px; color: var(--text-muted); background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px dashed rgba(255,255,255,0.1);">
+                <div style="font-size: 2rem; margin-bottom: 10px;">👻</div>
+                Henüz bir çalışma kaydın yok.<br>Hadi sayacı başlat!
+            </div>`;
+        return;
+    }
+
+    // 2. Verileri tarihe göre yeniden eskiye sırala (En yeni en üstte)
+    const sortedSessions = sessions.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    sortedSessions.forEach(session => {
         const li = document.createElement('li');
         const mins = Math.floor(session.durationInSeconds / 60);
         const secs = session.durationInSeconds % 60;
         const timeString = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+        
+        // Tarih ve saati daha insan okuyabilir (Human Readable) formata çevir
         const dateObj = new Date(session.date);
-        const dateString = dateObj.toLocaleDateString() + ' ' + dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        const timeOnly = dateObj.toLocaleTimeString('tr-TR', {hour: '2-digit', minute:'2-digit'});
+        const dateOnly = dateObj.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+        
         const sessionId = session.id || session.Id; 
 
+        // 3. Apple/Papara Tarzı Modern UI Tasarımı
         li.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-weight: 600; font-size: 1.1em; color: var(--text-light);">${session.subject}</span>
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <span style="background-color: rgba(79, 70, 229, 0.2); color: #c7d2fe; padding: 4px 10px; border-radius: 20px; font-weight: bold; font-size: 0.9em; border: 1px solid rgba(79, 70, 229, 0.3);">Süre: ${timeString}</span>
-                    <button onclick="deleteSession('${sessionId}')" style="background: transparent; border: none; color: #EF4444; cursor: pointer; font-size: 0.9em; font-weight: bold; padding: 0 5px;" title="Bu kaydı sil">Sil</button>
+            <div style="display: flex; align-items: center; gap: 15px; width: 100%;">
+                <div style="width: 42px; height: 42px; background: rgba(124, 58, 237, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; border: 1px solid rgba(124, 58, 237, 0.2);">
+                    📚
+                </div>
+                
+                <div style="flex: 1;">
+                    <div style="font-weight: 600; font-size: 1rem; color: var(--text-light); margin-bottom: 3px;">${session.subject}</div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted);">${dateOnly} • ${timeOnly}</div>
+                </div>
+                
+                <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
+                    <span style="font-weight: 700; color: var(--accent-orange); font-size: 0.95rem; background: rgba(249, 115, 22, 0.1); padding: 4px 10px; border-radius: 8px;">${timeString}</span>
+                    <button onclick="deleteSession('${sessionId}')" style="background: transparent; border: none; color: #EF4444; cursor: pointer; font-size: 0.75rem; padding: 0; opacity: 0.6; transition: 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">Kaydı Sil</button>
                 </div>
             </div>
-            <div style="margin-top: 5px; font-size: 0.8em; color: var(--text-muted);">Tarih: ${dateString}</div>
         `;
+        
         li.style.background = "rgba(255, 255, 255, 0.02)";
-        li.style.margin = "10px 0";
+        li.style.margin = "0 0 12px 0";
         li.style.padding = "15px";
-        li.style.borderRadius = "10px";
-        li.style.border = "1px solid rgba(255, 255, 255, 0.05)";
-        li.style.borderLeft = "5px solid var(--primary-purple)"; 
+        li.style.borderRadius = "14px";
+        li.style.border = "1px solid rgba(255, 255, 255, 0.04)";
+        li.style.transition = "all 0.2s ease";
+        
+        // Hover (Üzerine gelme) efekti
+        li.onmouseover = () => { 
+            li.style.background = "rgba(255, 255, 255, 0.04)"; 
+            li.style.borderColor = "rgba(124, 58, 237, 0.3)";
+            li.style.transform = "translateX(5px)"; 
+        };
+        li.onmouseout = () => { 
+            li.style.background = "rgba(255, 255, 255, 0.02)"; 
+            li.style.borderColor = "rgba(255, 255, 255, 0.04)";
+            li.style.transform = "none"; 
+        };
+
         sessionList.appendChild(li);
     });
 }
