@@ -89,51 +89,23 @@ auth.onAuthStateChanged((user) => {
     }
 });
 // Şifremi Unuttum Fonksiyonu
-// Modalı açan fonksiyon
-function resetPassword(event) {
-    if(event) event.preventDefault();
-    document.getElementById('reset-password-modal').style.display = 'flex';
+function resetPassword() {
+    const email = prompt("Lütfen şifresini sıfırlamak istediğiniz e-posta adresini girin:");
     
-    // Eğer giriş alanında bir mail yazılıysa otomatik doldur
-    const currentEmail = document.getElementById('email').value;
-    if(currentEmail) {
-        document.getElementById('reset-email-input').value = currentEmail;
+    if (email) {
+        firebase.auth().sendPasswordResetEmail(email)
+            .then(() => {
+                alert("Şifre sıfırlama bağlantısı e-posta adresinize gönderildi! Lütfen gelen kutunuzu (ve spam klasörünü) kontrol edin.");
+            })
+            .catch((error) => {
+                // Firebase hatalarını Türkçeye çevirerek kullanıcıya gösterelim
+                let errorMessage = "Bir hata oluştu.";
+                if (error.code === 'auth/user-not-found') errorMessage = "Bu e-posta adresiyle kayıtlı bir hesap bulunamadı.";
+                else if (error.code === 'auth/invalid-email') errorMessage = "Geçersiz bir e-posta adresi girdiniz.";
+                
+                alert(errorMessage);
+            });
     }
-}
-
-// Modalı kapatan fonksiyon
-function closeResetModal() {
-    document.getElementById('reset-password-modal').style.display = 'none';
-}
-
-// Gerçek sıfırlama işlemini yapan fonksiyon
-function processResetPassword() {
-    const email = document.getElementById('reset-email-input').value;
-    const btn = document.getElementById('confirm-reset-btn');
-
-    if (!email) {
-        alert("Lütfen e-posta adresinizi girin.");
-        return;
-    }
-
-    btn.disabled = true;
-    btn.innerText = "Gönderiliyor...";
-
-    firebase.auth().sendPasswordResetEmail(email)
-        .then(() => {
-            alert("Sıfırlama bağlantısı e-posta adresinize gönderildi.");
-            closeResetModal();
-        })
-        .catch((error) => {
-            let errorMessage = "Bir hata oluştu.";
-            if (error.code === 'auth/user-not-found') errorMessage = "Bu e-posta adresiyle kayıtlı bir hesap bulunamadı.";
-            else if (error.code === 'auth/invalid-email') errorMessage = "Geçersiz bir e-posta adresi girdiniz.";
-            alert(errorMessage);
-        })
-        .finally(() => {
-            btn.disabled = false;
-            btn.innerText = "Bağlantı Gönder";
-        });
 }
 
 // Misafir Girişi (Anonim) Fonksiyonu
