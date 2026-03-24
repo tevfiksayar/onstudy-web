@@ -26,8 +26,21 @@
             <input type="email" id="email" placeholder="E-posta" required>
             <input type="password" id="password" placeholder="Şifre" required>
             
+            <div id="forgot-password-container" style="text-align: right; margin-top: -10px; margin-bottom: 20px;">
+                <a href="#" onclick="resetPassword(event)" style="color: var(--text-muted); font-size: 0.85rem; text-decoration: none; transition: 0.2s;" onmouseover="this.style.color='var(--primary-purple)'" onmouseout="this.style.color='var(--text-muted)'">Şifremi unuttum</a>
+            </div>
+            
             <button type="submit" id="submit-btn" style="width: 100%; margin-top: 10px;">Giriş Yap</button>
             <p style="text-align: center; margin-top: 15px;">Hesabın yok mu? <a href="#" id="toggle-auth" style="color: var(--primary-purple); font-weight: 600; text-decoration: none;">Kayıt ol</a></p>
+
+            <div id="guest-login-section">
+                <div style="display: flex; align-items: center; margin: 25px 0; color: rgba(255,255,255,0.2);">
+                    <hr style="flex: 1; border: none; border-top: 1px solid rgba(255,255,255,0.1);">
+                    <span style="padding: 0 15px; font-size: 0.85rem;">VEYA</span>
+                    <hr style="flex: 1; border: none; border-top: 1px solid rgba(255,255,255,0.1);">
+                </div>
+                <button type="button" onclick="guestLogin()" style="width: 100%; background: transparent; border: 1px solid var(--text-muted); color: var(--text-light); box-shadow: none;">Misafir Olarak İncele</button>
+            </div>
         </form>
     </div>
 
@@ -37,13 +50,14 @@
     <script src="js/auth.js"></script>
     <script src="js/api.js"></script>
 
+
     <footer style="text-align: center; margin-top: 20px; padding: 30px 20px; border-top: 1px solid rgba(255,255,255,0.05);">
-    <p style="margin: 0; color: var(--text-muted); font-size: 0.85rem; letter-spacing: 0.5px;">
-        Geliştirici: 
-        <a href="https://linkedin.com/in/ahmettevfiksayar" target="_blank" style="color: var(--text-light); text-decoration: none; font-weight: 600; transition: color 0.2s;" onmouseover="this.style.color='var(--primary-purple)'" onmouseout="this.style.color='var(--text-light)'">Ahmet Tevfik Sayar</a>
-    </p>
-    <p style="margin: 5px 0 0 0; font-size: 0.75rem; color: rgba(255,255,255,0.3);">© 2026 onStudy. Tüm hakları saklıdır.</p>
-</footer>
+        <p style="margin: 0; color: var(--text-muted); font-size: 0.85rem; letter-spacing: 0.5px;">
+            Geliştirici: 
+            <a href="https://linkedin.com/in/ahmettevfiksayar" target="_blank" style="color: var(--text-light); text-decoration: none; font-weight: 600; transition: color 0.2s;" onmouseover="this.style.color='var(--primary-purple)'" onmouseout="this.style.color='var(--text-light)'">Ahmet Tevfik Sayar</a>
+        </p>
+        <p style="margin: 5px 0 0 0; font-size: 0.75rem; color: rgba(255,255,255,0.3);">© 2026 onStudy. Tüm hakları saklıdır.</p>
+    </footer>
 
 </body>
 </html>

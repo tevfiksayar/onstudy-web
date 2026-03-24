@@ -88,3 +88,34 @@ auth.onAuthStateChanged((user) => {
     window.location.replace("dashboard.html");
     }
 });
+// Şifremi Unuttum Fonksiyonu
+function resetPassword() {
+    const email = prompt("Lütfen şifresini sıfırlamak istediğiniz e-posta adresini girin:");
+    
+    if (email) {
+        firebase.auth().sendPasswordResetEmail(email)
+            .then(() => {
+                alert("Şifre sıfırlama bağlantısı e-posta adresinize gönderildi! Lütfen gelen kutunuzu (ve spam klasörünü) kontrol edin.");
+            })
+            .catch((error) => {
+                // Firebase hatalarını Türkçeye çevirerek kullanıcıya gösterelim
+                let errorMessage = "Bir hata oluştu.";
+                if (error.code === 'auth/user-not-found') errorMessage = "Bu e-posta adresiyle kayıtlı bir hesap bulunamadı.";
+                else if (error.code === 'auth/invalid-email') errorMessage = "Geçersiz bir e-posta adresi girdiniz.";
+                
+                alert(errorMessage);
+            });
+    }
+}
+
+// Misafir Girişi (Anonim) Fonksiyonu
+function guestLogin() {
+    firebase.auth().signInAnonymously()
+        .then(() => {
+            // Giriş başarılı, replace ile yönlendir (Geri tuşu bug'ını engellemek için)
+            window.location.replace("dashboard.html");
+        })
+        .catch((error) => {
+            alert("Misafir girişi başarısız oldu: " + error.message);
+        });
+}
