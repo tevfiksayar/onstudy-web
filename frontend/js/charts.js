@@ -481,16 +481,13 @@ function updateRecentSessions(sessions) {
 
         // 3. Apple/Papara Tarzı Modern UI Tasarımı
         li.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 15px; width: 100%;">
-                <div style="width: 42px; height: 42px; background: rgba(124, 58, 237, 0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; border: 1px solid rgba(124, 58, 237, 0.2);">
-                </div>
-                
+            <div style="display: flex; align-items: center; width: 100%;">
                 <div style="flex: 1;">
                     <div style="font-weight: 600; font-size: 1rem; color: var(--text-light); margin-bottom: 3px;">${session.subject}</div>
                     <div style="font-size: 0.8rem; color: var(--text-muted);">${dateOnly} • ${timeOnly}</div>
                 </div>
                 
-                <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
+                <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px; margin-left: 15px;">
                     <span style="font-weight: 700; color: var(--accent-orange); font-size: 0.95rem; background: rgba(249, 115, 22, 0.1); padding: 4px 10px; border-radius: 8px;">${timeString}</span>
                     <button onclick="deleteSession('${sessionId}')" style="background: transparent; border: none; color: #EF4444; cursor: pointer; font-size: 0.75rem; padding: 0; opacity: 0.6; transition: 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">Kaydı Sil</button>
                 </div>
