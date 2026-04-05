@@ -105,17 +105,17 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================
-// 5. GÖREVLER (TO-DO) YÖNETİMİ
+// 5. GÖREVLER (TO-DO) YÖNETİMİ 
 // ==========================================
-const addTodoBtn = document.getElementById('add-todo-btn');
-const newTodoInput = document.getElementById('new-todo-input');
-const todoList = document.getElementById('todo-list');
 
 window.loadTodos = function() {
+    const todoList = document.getElementById('todo-list');
     if (!todoList) return;
+    
     todoList.innerHTML = '';
     
-    const dateKey = window.selectedDateStr || new Date().toLocaleDateString('en-CA');
+    // Tarih formatını daha güvenilir olan Türkçe gün.ay.yıl formatına sabitledik
+    const dateKey = window.selectedDateStr || new Date().toLocaleDateString('tr-TR');
     const todos = JSON.parse(localStorage.getItem('onStudy_todos_' + dateKey) || '[]');
 
     if (todos.length === 0) {
@@ -144,41 +144,54 @@ window.loadTodos = function() {
     });
 }
 
-if (addTodoBtn) {
-    addTodoBtn.addEventListener('click', () => {
-        const text = newTodoInput.value.trim();
-        if (!text) return;
+// Buton dinleyicilerini SAYFA TAM YÜKLENDİKTEN SONRA bağla (En önemli düzeltme)
+document.addEventListener('DOMContentLoaded', () => {
+    const addTodoBtn = document.getElementById('add-todo-btn');
+    const newTodoInput = document.getElementById('new-todo-input');
 
-        const dateKey = window.selectedDateStr || new Date().toLocaleDateString('en-CA');
-        const todos = JSON.parse(localStorage.getItem('onStudy_todos_' + dateKey) || '[]');
-        todos.push({ text: text, completed: false });
-        
-        localStorage.setItem('onStudy_todos_' + dateKey, JSON.stringify(todos));
-        newTodoInput.value = '';
-        loadTodos();
-    });
-}
+    if (addTodoBtn && newTodoInput) {
+        // Tıklama Olayı
+        addTodoBtn.addEventListener('click', () => {
+            const text = newTodoInput.value.trim();
+            if (!text) return; // Boşsa ekleme
 
-if (newTodoInput) {
-    newTodoInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') addTodoBtn.click();
-    });
-}
+            const dateKey = window.selectedDateStr || new Date().toLocaleDateString('tr-TR');
+            const todos = JSON.parse(localStorage.getItem('onStudy_todos_' + dateKey) || '[]');
+            
+            todos.push({ text: text, completed: false });
+            localStorage.setItem('onStudy_todos_' + dateKey, JSON.stringify(todos));
+            
+            newTodoInput.value = ''; // Kutuyu temizle
+            window.loadTodos(); // Listeyi yenile
+        });
 
+        // Enter Tuşu Olayı
+        newTodoInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault(); // Sayfanın gizlice yenilenmesini engeller
+                addTodoBtn.click();
+            }
+        });
+    }
+
+    // Sayfa açılışında görevleri getir
+    window.loadTodos();
+});
+
+// Görev Tamamlama
 window.toggleTodo = function(index) {
-    const dateKey = window.selectedDateStr || new Date().toLocaleDateString('en-CA');
+    const dateKey = window.selectedDateStr || new Date().toLocaleDateString('tr-TR');
     const todos = JSON.parse(localStorage.getItem('onStudy_todos_' + dateKey) || '[]');
     todos[index].completed = !todos[index].completed;
     localStorage.setItem('onStudy_todos_' + dateKey, JSON.stringify(todos));
-    loadTodos();
+    window.loadTodos();
 };
 
+// Görev Silme
 window.deleteTodo = function(index) {
-    const dateKey = window.selectedDateStr || new Date().toLocaleDateString('en-CA');
+    const dateKey = window.selectedDateStr || new Date().toLocaleDateString('tr-TR');
     const todos = JSON.parse(localStorage.getItem('onStudy_todos_' + dateKey) || '[]');
     todos.splice(index, 1);
     localStorage.setItem('onStudy_todos_' + dateKey, JSON.stringify(todos));
-    loadTodos();
+    window.loadTodos();
 };
-
-document.addEventListener('DOMContentLoaded', loadTodos);
