@@ -1,7 +1,7 @@
 {
   "name": "onStudy",
   "short_name": "onStudy",
-  "start_url": "http://192.168.1.228:5500/frontend/login.html",
+  "start_url": ".",
   "display": "standalone",
   "background_color": "#12131C",
   "theme_color": "#7C3AED",
