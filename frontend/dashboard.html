@@ -7,6 +7,7 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#12131C">
     <link rel="apple-touch-icon" href="assets/logo.jpg">
+    <link rel="icon" type="image/jpeg" href="assets/logo.jpg">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
@@ -236,6 +237,58 @@
 
     </main>
 
+    <div id="profile-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>Kullanıcı Ayarları</h3>
+            
+            <label class="modal-label">KULLANICI ADI</label>
+            <input type="text" id="modal-name" placeholder="Adınızı girin" style="margin-bottom: 15px;">
+            
+            <label class="modal-label">HEDEF SINAV</label>
+            <select id="modal-exam" style="margin-bottom: 15px;">
+                <option value="Genel" style="color: black;">Genel Odaklanma</option>
+                <option value="YKS" style="color: black;">YKS (Üniversite)</option>
+                <option value="TUS" style="color: black;">TUS (Tıpta Uzmanlık)</option>
+                <option value="DUS" style="color: black;">DUS (Diş Hekimliği)</option>
+                <option value="KPSS" style="color: black;">KPSS (Memurluk)</option>
+                <option value="LGS" style="color: black;">LGS (Lise)</option>
+            </select>
+            
+            <div style="display: flex; gap: 15px;">
+                <div style="flex: 1;">
+                    <label class="modal-label">HEDEF (SAAT)</label>
+                    <input type="number" id="modal-hours" min="0" placeholder="0">
+                </div>
+                <div style="flex: 1;">
+                    <label class="modal-label">HEDEF (DAKİKA)</label>
+                    <input type="number" id="modal-minutes" min="0" max="59" placeholder="30">
+                </div>
+            </div>
+            
+            <div style="margin-top: 25px; padding-top: 15px; border-top: 1px solid rgba(239, 68, 68, 0.2);">
+                <label class="modal-label" style="color: #EF4444;">TEHLİKELİ BÖLGE</label>
+                <button id="reset-data-btn" style="width: 100%; background: transparent; border: 1px solid rgba(239, 68, 68, 0.5); color: #EF4444; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: 0.2s;">Tüm Verilerimi Sıfırla</button>
+            </div>
+            
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 25px;">
+                <button id="modal-cancel-btn" style="background: transparent; border: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); padding: 10px 20px; border-radius: 8px; box-shadow: none;">İptal</button>
+                <button id="modal-save-btn" style="background: var(--primary-purple); color: white; border: none; padding: 10px 20px; border-radius: 8px; box-shadow: none;">Kaydet</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="custom-dialog" class="modal-overlay" style="z-index: 2000;">
+        <div class="modal-content" style="text-align: center; width: 320px;">
+            <div id="dialog-icon" style="font-size: 3rem; margin-bottom: 10px;"></div>
+            <h3 id="dialog-title" style="margin-top: 0; margin-bottom: 10px; color: var(--text-light);">Emin misin?</h3>
+            <p id="dialog-message" style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 25px; line-height: 1.5;"></p>
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button id="dialog-cancel-btn" style="flex: 1; background: transparent; border: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); padding: 10px; border-radius: 8px; cursor: pointer; font-weight: 600;">İptal</button>
+                <button id="dialog-confirm-btn" style="flex: 1; border: none; color: white; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold;"></button>
+            </div>
+        </div>
+    </div>
+
     <footer style="text-align: center; padding: 30px 20px; border-top: 1px solid rgba(255,255,255,0.05); width: 100%; box-sizing: border-box;">
         <p style="margin: 0; color: var(--text-muted); font-size: 0.85rem; letter-spacing: 0.5px;">
             Geliştirici: 
@@ -258,8 +311,8 @@
             }
         }
     </script>
-    <script src="js/api.js"></script>
-    <script src="js/timer.js"></script> 
-    <script src="js/charts.js?v=1.1"></script> 
+    <script src="js/api.js?v=2"></script>
+    <script src="js/timer.js?v=2"></script> 
+    <script src="js/charts.js?v=2"></script> 
 </body>
 </html>
