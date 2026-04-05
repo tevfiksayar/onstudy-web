@@ -233,7 +233,6 @@ window.showCustomDialog = function(title, message, icon, confirmText, confirmCol
     };
 };
 
-const profileModal = document.getElementById('profile-modal');
 const modalName = document.getElementById('modal-name');
 const modalHours = document.getElementById('modal-hours');
 const modalMinutes = document.getElementById('modal-minutes');
